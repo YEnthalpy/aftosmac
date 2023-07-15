@@ -3,25 +3,66 @@
 
 using namespace Rcpp;
 
+// Binary search find the first element that isn't smaller than x in a sorted array
+int f_loc(arma::vec arry, double x, int low, int high)
+{
+  if (arry[0] >= x)
+  {
+    return 0;
+  }
+  int mid = 0;
+  while (low <= high)
+  {
+    mid = (low + high) / 2;
+    if (arry[mid] >= x)
+    {
+      if (arry[mid - 1] < x)
+      {
+        return mid;
+      }
+      high = mid - 1;
+    }
+    else
+    {
+      low = mid + 1;
+    }
+  }
+  return mid;
+}
+
+// Function to center a design matrix with user-defined weight
+// [[Rcpp::export]]
+NumericMatrix center(NumericMatrix M, NumericVector w, int N)
+{
+  int p = M.ncol();
+  int n = M.nrow();
+  NumericVector cmean(p);
+  for (int i = 0; i < n; i++)
+  {
+    double wi = w[i];
+    for (int j = 0; j < p; j++)
+    {
+      cmean[j] += (M(i, j) / wi);
+    }
+  }
+  cmean = cmean / n / N;
+  NumericMatrix out(n, p);
+  for (int i = 0; i < n; i++)
+  {
+    out(i, _) = M(i, _) - cmean;
+  }
+  return out;
+}
+
+// Calculate the KM estimator of the survival function
 // [[Rcpp::export]]
 List km(NumericVector e, NumericVector d,
         NumericVector p)
 {
   int t = e.length();
-  // int l = 0;
-  // while (l < t)
-  // {
-  //   if (d[l] == 1)
-  //   {
-  //     break;
-  //   }
-  //   l++;
-  // }
   NumericVector s(t, 1.0);
-  // NumericVector eu(t);
   double den = 0;
   int i = t - 1;
-  // int k = t - 1;
   while (i >= 0)
   {
     double ei = e[i];
@@ -44,21 +85,10 @@ List km(NumericVector e, NumericVector d,
       }
       j--;
     }
-    // i = j;
-    // if (nut == 0)
-    // {
-    //   continue;
-    // }
     double tmp = 1 - nut / den;
     s[j + 1] = tmp;
     i = j;
-    // s[k] = tmp;
-    // eu[k] = e[i + 1];
-    // k--;
   }
-  // s.erase(0, k + 1);
-  // eu.erase(0, k + 1);
-  // NumericVector out(t - k - 1);
   NumericVector out(t);
   double start = 1;
   for (int i = 0; i < t; i++)
@@ -66,15 +96,11 @@ List km(NumericVector e, NumericVector d,
     start = start * s[i];
     out[i] = start;
   }
-  // if (l != 0)
-  // {
-  //   out.push_front(1);
-  //   eu.push_front(e[l - 1]);
-  // }
   List out1 = List::create(e, out);
   return out1;
 }
 
+// Gehan type non-smooth estimating function
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat gehan_ns(arma::mat x, arma::vec y, arma::uvec d,
@@ -103,37 +129,7 @@ arma::mat gehan_ns(arma::mat x, arma::vec y, arma::uvec d,
   return out;
 }
 
-
-
-// Binary search find the first element that isn't smaller than x
-// arry is sorted
-
-int f_loc(arma::vec arry, double x, int low, int high)
-{
-  if (arry[0] >= x)
-  {
-    return 0;
-  }
-  int mid = 0;
-  while (low <= high)
-  {
-    mid = (low + high) / 2;
-    if (arry[mid] >= x)
-    {
-      if (arry[mid - 1] < x)
-      {
-        return mid;
-      }
-      high = mid - 1;
-    }
-    else
-    {
-      low = mid + 1;
-    }
-  }
-  return mid;
-}
-
+// Gehan type non-smooth estimating function expressed by well-defined martingale
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat gehan_mtg(arma::mat x, arma::vec d, arma::vec e,
@@ -204,6 +200,7 @@ arma::mat gehan_mtg(arma::mat x, arma::vec d, arma::vec e,
   return out;
 }
 
+// Gehan type smooth estimating function
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat gehan_smth(const arma::mat &x, const arma::vec &y,
@@ -229,6 +226,7 @@ arma::mat gehan_smth(const arma::mat &x, const arma::vec &y,
   return out;
 }
 
+// Gehan type smooth estimating function expressed by well-defined martingale
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat gehan_s_mtg(const arma::mat &x, const arma::vec &y,
@@ -282,6 +280,7 @@ arma::mat gehan_s_mtg(const arma::mat &x, const arma::vec &y,
   return out;
 }
 
+// The jacobian matrix of the gehan type smooth estimating function
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat gehan_s_jaco(const arma::mat &x, const arma::vec &y,
@@ -305,31 +304,6 @@ arma::mat gehan_s_jaco(const arma::mat &x, const arma::vec &y,
     arma::mat xdif2 = xdif.each_col() % (phij % dij / rij / pij);
     xdif2.replace(arma::datum::nan, 0);
     out += xdif.t() * xdif2 / p[i] / n / n / r / r * sqrt(r);
-  }
-  return out;
-}
-
-
-// [[Rcpp::export]]
-
-NumericMatrix center(NumericMatrix M, NumericVector w, int N)
-{
-  int p = M.ncol();
-  int n = M.nrow();
-  NumericVector cmean(p);
-  for (int i = 0; i < n; i++)
-  {
-    double wi = w[i];
-    for (int j = 0; j < p; j++)
-    {
-      cmean[j] += (M(i, j) / wi);
-    }
-  }
-  cmean = cmean / n / N;
-  NumericMatrix out(n, p);
-  for (int i = 0; i < n; i++)
-  {
-    out(i, _) = M(i, _) - cmean;
   }
   return out;
 }

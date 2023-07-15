@@ -1,11 +1,11 @@
 Package: aftosmac
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
+Title: What the package does (short line)
+Version: 1.0
+Date: 2023-07-15
 Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
-Encoding: UTF-8
-LazyData: true
+Imports: Rcpp (>= 1.0.10)
+LinkingTo: Rcpp, RcppArmadillo
