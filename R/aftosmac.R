@@ -1,8 +1,93 @@
+aftosmac.control <- function(maxiter = 1000, tol = 1e-5,
+                             parallel = FALSE,
+                             parCl = parallel::detectCores()) {
+  list(maxiter = maxiter, tol = tol,
+       parallel = parallel, parCl = parCl)
+}
+
+
+aftosmac.est <- function(x, y, delta, ssps, iniBeta, n,
+                         method, dist = "weibull",
+                         control = aftosmac.control()) {
+  beta <- iniBeta
+  xmat <- as.matrix(x)
+  r <- length(y)
+  if (method == "least-squares") {
+    cxmat <- center(xmat[, -1], ssps, n)
+    for (i in seq_len(control$maxit)) {
+      py <- xmat %*% beta
+      tmp <- eres((y - py), delta, ssps, seq_len(r))[[1]]
+      hy <- delta * y + (1 - delta) * (tmp + py)
+      cy <- as.vector(hy - mean(hy / pi) / n)
+      newBeta <- tryCatch(
+        solve(crossprod(cxmat, cxmat / ssps), colSums(cxmat * cy / ssps)),
+        error = function(e) NA,
+        warning = function(w) NA
+      )
+      if (is.na(newBeta[1])) {
+        return(list(coe = rep(NA, ncol(x)), converge = 1, ite = NA))
+      }
+      newBeta <- c(NA, as.vector(newBeta))
+      newBeta[1] <- max(eres((y - xmat[, -1] %*% newBeta[-1]),
+                             delta, ssps, seq_len(r))[[2]])
+      e <- sqrt(sum(newBeta - beta)^2)
+      if (e < control$tol) {
+        return(list(coe = newBeta, converge = 0, ite = i))
+      } else {
+        beta <- newBeta
+      }
+      if (i == control$maxit) {
+        return(list(coe = newBeta, converge = 2, ite = i))
+      }
+    }
+  } else if (method == "rank") {
+
+  }
+}
+
+semi_rk_est <- function(x, y, delta, pi, n,
+                        control = list(
+                          init = "least-squares",
+                          tol = 1e-5, maxit = 1000
+                        )) {
+  if (sum(x[, 1]) == nrow(x)) {
+    x <- x[, -1]
+  }
+  if (control$init == "least-squares") {
+    init <- lsfit(x, y, intercept = FALSE)$coefficient
+  }
+  out <- nleqslv::nleqslv(
+    x = init, fn = function(b) {
+      colSums(gehan_smth(x, y, delta, pi, b, n))
+    }, jac = function(b) {
+      gehan_s_jaco(x, y, delta, pi, b, n)
+    }, method = "Broyden", jacobian = FALSE,
+    control = list(ftol = control$tol, xtol = 1e-20, maxit = control$maxit)
+  )
+  conv <- out$termcd
+  coe <- out$x
+  if (conv == 1) {
+    conv <- 0
+  } else if (conv %in% c(2, 4)) {
+    conv <- 2
+    coe <- rep(NA, ncol(x))
+  } else {
+    conv <- 1
+    coe <- rep(NA, ncol(x))
+  }
+  names(coe) <- paste0("beta", seq_len(ncol(x)))
+  return(list(
+    coefficient = coe, converge = conv,
+    iter = c(out$iter, out$njcnt, out$nfcnt)
+  ))
+}
+
+
 "%^%" <- function(x, n) {
   with(eigen(x), vectors %*% (values^n * t(vectors)))
 }
-# least-square approach
-## 1. The integration part in yhat
+
+
 eres <- function(e, delta, pi, ind_km) {
   e_sub <- e[ind_km]
   ord_sub <- order(e_sub)
@@ -59,44 +144,7 @@ resp <- function(x, y, delta, beta, pi, n, b) {
 
 
 ## 4. Iterative procedure to get the estimator
-semi_ls_est <- function(x, y, delta, pi, n, control = list(
-                          init = rep(0, ncol(x)),
-                          tol = 1e-5, maxit = 200
-                        )) {
-  beta <- control$init
-  xdif <- center(x[, -1], pi, n)
-  for (i in 1:control$maxit) {
-    py <- x %*% beta
-    tmp <- eres((y - py), delta, pi, seq_along(y))[[1]]
-    hy <- delta * y + (1 - delta) * (tmp + py)
-    ydif <- as.vector(hy - mean(hy / pi) / n)
-    beta_new <- tryCatch(
-      solve(
-        crossprod(xdif, xdif / pi),
-        colSums(xdif * ydif / pi)
-      ),
-      error = function(e) NA,
-      warning = function(w) NA
-    )
-    if (is.na(beta_new[1])) {
-      return(list(coefficient = rep(0, ncol(x)), converge = 1, ite = NA))
-    }
-    beta_new <- c(NA, as.vector(beta_new))
-    beta_new[1] <- max(eres(
-      (y - x[, -1] %*% beta_new[-1]),
-      delta, pi, seq_along(y)
-    )[[2]])
-    e <- sqrt(sum((beta_new - beta)^2))
-    if (e < control$tol) {
-      return(list(coefficient = beta_new, converge = 0, ite = i))
-    } else {
-      beta <- beta_new
-    }
-    if (i == control$maxit) {
-      return(list(coefficient = beta_new, converge = 2, ite = i))
-    }
-  }
-}
+
 
 ## 5. get the optimal ssps
 semi_ls_ssp <- function(x, y, delta, r0, ssp_type, b, alpha) {
