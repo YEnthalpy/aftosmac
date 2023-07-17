@@ -1,119 +1,5 @@
-aftosmac.control <- function(maxiter = 1000, tol = 1e-5,
-                             parallel = FALSE,
-                             parCl = parallel::detectCores()) {
-  list(maxiter = maxiter, tol = tol,
-       parallel = parallel, parCl = parCl)
-}
-
-
-aftosmac.est <- function(x, y, delta, ssps, iniBeta, n,
-                         method, dist = "weibull",
-                         control = aftosmac.control()) {
-  beta <- iniBeta
-  xmat <- as.matrix(x)
-  r <- length(y)
-  if (method == "least-squares") {
-    cxmat <- center(xmat[, -1], ssps, n)
-    for (i in seq_len(control$maxit)) {
-      py <- xmat %*% beta
-      tmp <- eres((y - py), delta, ssps, seq_len(r))[[1]]
-      hy <- delta * y + (1 - delta) * (tmp + py)
-      cy <- as.vector(hy - mean(hy / pi) / n)
-      newBeta <- tryCatch(
-        solve(crossprod(cxmat, cxmat / ssps), colSums(cxmat * cy / ssps)),
-        error = function(e) NA,
-        warning = function(w) NA
-      )
-      if (is.na(newBeta[1])) {
-        return(list(coe = rep(NA, ncol(x)), converge = 1, ite = NA))
-      }
-      newBeta <- c(NA, as.vector(newBeta))
-      newBeta[1] <- max(eres((y - xmat[, -1] %*% newBeta[-1]),
-                             delta, ssps, seq_len(r))[[2]])
-      e <- sqrt(sum(newBeta - beta)^2)
-      if (e < control$tol) {
-        return(list(coe = newBeta, converge = 0, ite = i))
-      } else {
-        beta <- newBeta
-      }
-      if (i == control$maxit) {
-        return(list(coe = newBeta, converge = 2, ite = i))
-      }
-    }
-  } else if (method == "rank") {
-
-  }
-}
-
-semi_rk_est <- function(x, y, delta, pi, n,
-                        control = list(
-                          init = "least-squares",
-                          tol = 1e-5, maxit = 1000
-                        )) {
-  if (sum(x[, 1]) == nrow(x)) {
-    x <- x[, -1]
-  }
-  if (control$init == "least-squares") {
-    init <- lsfit(x, y, intercept = FALSE)$coefficient
-  }
-  out <- nleqslv::nleqslv(
-    x = init, fn = function(b) {
-      colSums(gehan_smth(x, y, delta, pi, b, n))
-    }, jac = function(b) {
-      gehan_s_jaco(x, y, delta, pi, b, n)
-    }, method = "Broyden", jacobian = FALSE,
-    control = list(ftol = control$tol, xtol = 1e-20, maxit = control$maxit)
-  )
-  conv <- out$termcd
-  coe <- out$x
-  if (conv == 1) {
-    conv <- 0
-  } else if (conv %in% c(2, 4)) {
-    conv <- 2
-    coe <- rep(NA, ncol(x))
-  } else {
-    conv <- 1
-    coe <- rep(NA, ncol(x))
-  }
-  names(coe) <- paste0("beta", seq_len(ncol(x)))
-  return(list(
-    coefficient = coe, converge = conv,
-    iter = c(out$iter, out$njcnt, out$nfcnt)
-  ))
-}
-
-
 "%^%" <- function(x, n) {
   with(eigen(x), vectors %*% (values^n * t(vectors)))
-}
-
-
-eres <- function(e, delta, pi, ind_km) {
-  e_sub <- e[ind_km]
-  ord_sub <- order(e_sub)
-  km_sub <- km(e_sub[ord_sub], delta[ind_km][ord_sub], pi[ind_km][ord_sub])
-  es_sub <- km_sub[[1]]
-  s_sub <- km_sub[[2]]
-  edif <- c(diff(es_sub), 0)
-  int <- rev(cumsum(rev(edif * s_sub)))
-  es_int <- int + s_sub * es_sub
-  int <- int / s_sub + es_sub
-  ehat <- approx(es_sub, int, e, method = "constant", ties = "ordered")$y
-  ehat[is.na(ehat)] <- e[is.na(ehat)]
-  return(list(ehat, es_int))
-}
-
-
-## 2. Estimating function for least square approach
-uls <- function(x, y, delta, beta, pi, n, ind_km) {
-  xdif <- center(x[, -1], pi, n)
-  py <- x %*% beta
-  tmp <- eres((y - py), delta, pi, ind_km)[[1]]
-  hy <- delta * y + (1 - delta) * (tmp + py)
-  ydif <- hy - mean(hy / pi) / n
-  beta <- beta[-1]
-  out <- xdif * as.vector(ydif - xdif %*% beta) / pi / n
-  return(out)
 }
 
 ## 3. resampling approach to get slope matrix
@@ -141,9 +27,6 @@ resp <- function(x, y, delta, beta, pi, n, b) {
   }
   return(t(lsfit(zb, response, intercept = FALSE)$coefficients))
 }
-
-
-## 4. Iterative procedure to get the estimator
 
 
 ## 5. get the optimal ssps
