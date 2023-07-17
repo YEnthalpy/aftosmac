@@ -23,7 +23,16 @@ rankEst.gehan.s <- function(DF, engine) {
 }
 
 parEst.weibull <- function(DF, engine) {
-
+  xmat <- as.matrix(DF$covaraites)
+  y <- log(DF$time)
+  delta <- DF$delta
+  ssps <- DF$ssps
+  sigma <- engine@b[1]
+  er <- drop((y - xmat %*% engine@b[-1]) / sigma)
+  exper <- exp(er)
+  d.beta <- xmat * (exper - delta) / ssps / sigma
+  d.sig <- (er * exper - delta * er - delta) / ssps / sigma
+  cbind(d.sig, d.beta)
 }
 
 

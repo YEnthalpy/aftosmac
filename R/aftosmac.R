@@ -1,6 +1,3 @@
-"%^%" <- function(x, n) {
-  with(eigen(x), vectors %*% (values^n * t(vectors)))
-}
 
 ## 3. resampling approach to get slope matrix
 resp <- function(x, y, delta, beta, pi, n, b) {
@@ -12,7 +9,7 @@ resp <- function(x, y, delta, beta, pi, n, b) {
   zbs <- matrix(ifelse(rbinom(b * p, 1, 0.5) == 1, 1, -1),
     ncol = p, byrow = TRUE
   )
-  zb <- zbs %*% (v %^% (-0.5))
+  zb <- zbs %*% with(eigen(v), vectors %*% (values^(-0.5) * t(vectors)))
   beta1 <- zb / sqrt(r) + matrix(rep(beta[-1], b),
     ncol = p,
     byrow = TRUE

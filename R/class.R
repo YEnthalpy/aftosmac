@@ -1,8 +1,10 @@
 ## Point estimator
 setClass("Engine",
          representation(tol = "numeric", b0 = "numeric", b = "numeric",
-                        maxit = "numeric", n = "numeric", ind_sub = "numberic"),
-         prototype(tol = 1e-5, b0 = 0, b = 0, maxit = 1000, n = 0, ind_sub = 0),
+                        maxit = "numeric", n = "numeric", ind_sub = "numberic",
+                        B = "numeric"),
+         prototype(tol = 1e-5, b0 = 0, b = 0, maxit = 1000,
+                   n = 0, ind_sub = 0, B = 100),
          contains = "VIRTUAL")
 
 setClass("semi.ls", contains = "Engine")
