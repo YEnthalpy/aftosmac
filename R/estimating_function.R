@@ -1,3 +1,18 @@
+eres <- function(e, delta, pi, ind_km) {
+  e_sub <- e[ind_km]
+  ord_sub <- order(e_sub)
+  km_sub <- km(e_sub[ord_sub], delta[ind_km][ord_sub], pi[ind_km][ord_sub])
+  es_sub <- km_sub[[1]]
+  s_sub <- km_sub[[2]]
+  edif <- c(diff(es_sub), 0)
+  int <- rev(cumsum(rev(edif * s_sub)))
+  es_int <- int + s_sub * es_sub
+  int <- int / s_sub + es_sub
+  ehat <- approx(es_sub, int, e, method = "constant", ties = "ordered")$y
+  ehat[is.na(ehat)] <- e[is.na(ehat)]
+  return(list(ehat, es_int))
+}
+
 lsEst <- function(DF, engine) {
   xmat <- as.matrix(DF$covaraites)
   y <- log(DF$time)

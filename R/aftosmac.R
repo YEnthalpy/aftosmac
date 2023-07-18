@@ -1,208 +1,103 @@
-## 6. Get estiamted coefficient and standard error
-semi_ls_fit <- function(x, y, delta, r0, r, ssp_type, method, se = TRUE, b = 20,
-                        itr = 5, alpha = 0.2) {
-  n <- nrow(x)
-  ssps <- semi_ls_ssp(x, y, delta, r0, ssp_type, b, alpha)
-  pi <- ssps$ssp
-  if (ssps$converge != 0) {
+aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
+                     rankWt = c("gehan"), parDist = c("weibull"),
+                     eqType = c("s", "ns"),
+                     fitMtd = c("rank", "ls", "par"),
+                     estMtd = c("cs", "ce"),
+                     se = c("NULL", "parTrue", "parFull"),
+                     control = list()) {
+  rankWt <- match.arg(rankWt)
+  eqType <- match.arg(eqType)
+  fitMtd <- match.arg(fitMtd)
+  estMtd <- match.arg(estMtd)
+  parDist <- match.arg(parDist)
+  se <- match.arg(se)
+  scall <- match.call() # call function, including all inputs
+  mnames <- c("", "formula", "data") # variable related to data
+  cnames <- names(scall) # names of input arguments
+  cnames <- cnames[match(mnames, cnames, 0)] # common arguments of inputs and data
+  mcall <- scall[cnames] # input arguments related to model
+  mcall[[1]] <- as.name("model.frame")
+  m <- eval(mcall, parent.frame()) # make the input data as a dataframe
+  mterms <- attr(m, "terms") # attributes of input data
+  obj <- unclass(m[, 1]) # survival time and censoring indicator
+  if (class(m[[1]]) != "Surv" || ncol(obj) > 2)
+    stop("aftsrr only supports Surv object with right censoring.", call. = FALSE)
+  formula[[2]] <- NULL
+  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
+  # intercept is added in method functions if needed
+  DF <- DF[, -which(colnames(DF) == "(Intercept)")]
+  if (fitMtd == "ls") {
+    method <- "semi.ls"
+  }else if (fit.Mtd == "rank") {
+    method <- paste("semi", fitMtd, rankWt, eqType, sep = ".")
+  }else if (fit.Mtd == "par") {
+    method <- paste(fit.Mtd, parDist, sep = ".")
+  }
+  # create engine
+  engine.control <- control[names(control) %in% names(attr(getClass(method), "slots"))]
+  engine <- do.call("new", c(list(Class = method), engine.control))
+  if (engine@b0 == 0) {
+    engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
+  }else if (engine@b0 == 1) {
+    engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1])$coefficient)[-1]
+  }
+  if (length(engine@b0) != ncol(DF) - 2)
+    stop("Initial value length does not match with the numbers of covariates",
+         call. = FALSE)
+  engine@n <- nrow(DF)
+  optSSPs <- aftosmac.ssps(DF, engine, fitMtd = fitMtd,
+                           rankWt = rankWt, sspType = sspType)
+  if (optSSPs$converge != 0) {
     stop(paste0("Fail to get a converging pilot estimator. The converging code is ", ssps$converge))
   }
-  if (method == "one") {
-    ind_pt <- ssps$index.pilot
-    ind_r <- sample(n, r, prob = pi, replace = TRUE)
-    ind <- c(ind_r, ind_pt)
-    sec_ssp <- c(pi[ind_r], rep(1 / n, r0))
-    est <- semi_ls_est(x[ind, ], y[ind], delta[ind], sec_ssp, n)
-    if (est$converge != 0) {
-      stop(paste0("Fail to get a converging second-step estimator. The converging code is ", est$converge))
+  indPt <- optSSPs$ind.pt
+  # sample with replacement
+  indSec <- sample(engine@n, r, prob = optSSPs$ssp, replace = TRUE)
+  if (estMtd == "cs") {
+    indSamp <- c(indPt, indSec)
+    sspSamp <- c(rep(1/engine@n, r0), optSSPs$ssp[indSec])
+    DF.Samp <- DF[indSamp, ]
+    DF.Samp$ssps <- sspSamp
+    estOut <- aftosmac.fit(DF.Samp, engine)
+    if (estOut$converge != 0) {
+      stop(paste0("Fail to get a converging second-step estimator.
+                  The converging code is ", estOut$converge))
     }
-    coe <- as.vector(est$coefficient)
-    ite <- est$ite
-    if (se) {
-      r <- r + r0
-      z <- matrix(rexp(b * r), nrow = r, byrow = FALSE)
-      g <- uls(x[ind, ], y[ind], delta[ind], coe, sec_ssp, n, seq_len(r))
-      vc <- var(crossprod(z, g)) / r
-      m_inv <- solve(resp(x[ind, ], y[ind], delta[ind], coe, sec_ssp, n, b))
-      vx <- m_inv %*% tcrossprod(vc, m_inv) / r
-      std <- c(NA, sqrt(diag(vx)))
-    } else {
-      std <- NA
+  }else if (estMtd == "ce") {
+    DF.snd <- DF[indSec, ]
+    est.snd <- aftosmac.fit(DF.snd, engine)
+    if (est.snd$converge != 0) {
+      stop(paste0("Fail to get a converging subsample estimator.
+                  The converging code is ", est.snd$converge))
     }
-  } else if (method == "multiple") {
-    out <- replicate(itr, expr = {
-      ind <- sample(n, r, prob = pi, replace = TRUE)
-      est <- list(semi_ls_est(x[ind, ], y[ind], delta[ind], pi[ind], n))
-    })
-    conv <- sapply(out, function(i) {i$converge})
-    if (sum(conv) != 0) {
-      stop(paste0("At least one second-step estimators do not converge. ",
-                  length(which(conv == 1)), "subsample estimators have the converging code 1. ",
-                  length(which(conv == 2)), "subsample estimators have the converging code 2."))
-    }
-    coe_itr <- sapply(out, function(t){t$coefficient})
-    ite <- mean(sapply(out, function(t){t$ite}))
-    coe <- rowMeans(coe_itr)
-    if (se) {
-      std <- sqrt(diag(var(t(coe_itr)) / itr))
-    } else {
-      std <- NA
-    }
+    engine@b <- est.snd$coe
+    M.snd <- r * aftosmac.slope(DF.snd, engine)
+    engine@b <- optSSPs$coe.pt
+    M.pt <- r0 * aftosmac.slope(DF[indPt], engine) # wrong
+    estOut <- drop(solve(M.pt + M.snd) %*% (M.pt %*% optSSPs$coe.pt + M.snd %*% est.snd$coe))
   }
-  if (is.null(colnames(x))) {
-    names(coe) <- names(std) <- c("Intercept", paste0("Beta", seq(1, ncol(x)-1, 1)))
-  }else {
-    names(coe) <- names(std) <- colnames(x)
+  if (!is.NULL(se)) {
+    indSamp <- c(indPt, indSec)
+    sspSamp <- c(rep(1/engine@n, r0), optSSPs$ssp[indSec])
+    engine@b <- estOut
+    engine@ind_sub <- seq_len(r + r0)
+    g <- aftosmac.est(DF[indSamp, ], engine)
+    vc <- crossprod(g) * (r + r0)
+    vc_add <- crossprod(sspSamp * g, g) * (r + r0) * engine@n
+    vc_amend <- vc + ((r + r0) / engine@n) * vc_add
+    # inverse of the hessian matrix estimated by the second step subsample
+    m_inv <- solve(aftosmac.slope(DF[indSamp, ], engine))
+    # sandwich estimator for full estimator
+    vx <- m_inv %*% vc %*% m_inv / (r + r0)
+    std <- c(sqrt(diag(vx)))
+    # sandwich estimator for true coe
+    vx_amend <- m_inv %*% vc_amend %*% m_inv / (r + r0)
+    std_amend <- c(sqrt(diag(vx_amend)))
   }
-  return(list(coefficient = coe, std = std, converge = 0, ite = ite))
-}
-
-eres <- function(e, delta, pi, ind_km) {
-  e_sub <- e[ind_km]
-  ord_sub <- order(e_sub)
-  km_sub <- km(e_sub[ord_sub], delta[ind_km][ord_sub], pi[ind_km][ord_sub])
-  es_sub <- km_sub[[1]]
-  s_sub <- km_sub[[2]]
-  edif <- c(diff(es_sub), 0)
-  int <- rev(cumsum(rev(edif * s_sub)))
-  es_int <- int + s_sub * es_sub
-  int <- int / s_sub + es_sub
-  ehat <- approx(es_sub, int, e, method = "constant", ties = "ordered")$y
-  ehat[is.na(ehat)] <- e[is.na(ehat)]
-  return(list(ehat, es_int))
-}
-
-semi_rk_est <- function(x, y, delta, pi, n,
-                        control = list(
-                          init = "least-squares",
-                          tol = 1e-5, maxit = 1000
-                        )) {
-  if (sum(x[, 1]) == nrow(x)) {
-    x <- x[, -1]
-  }
-  if (control$init == "least-squares") {
-    init <- lsfit(x, y, intercept = FALSE)$coefficient
-  }
-  out <- nleqslv::nleqslv(
-    x = init, fn = function(b) {
-      colSums(gehan_smth(x, y, delta, pi, b, n))
-    }, jac = function(b) {
-      gehan_s_jaco(x, y, delta, pi, b, n)
-    }, method = "Broyden", jacobian = FALSE,
-    control = list(ftol = control$tol, xtol = 1e-20, maxit = control$maxit)
-  )
-  conv <- out$termcd
-  coe <- out$x
-  if (conv == 1) {
-    conv <- 0
-  } else if (conv %in% c(2, 4)) {
-    conv <- 2
-    coe <- rep(NA, ncol(x))
-  } else {
-    conv <- 1
-    coe <- rep(NA, ncol(x))
-  }
-  names(coe) <- paste0("beta", seq_len(ncol(x)))
-  return(list(
-    coefficient = coe, converge = conv,
-    iter = c(out$iter, out$njcnt, out$nfcnt)
-  ))
-}
-
-
-
-## 6. Get estiamted coefficient and standard error
-semi_rk_fit <- function(x, y, delta, r0, r, ssp_type, se = TRUE, alpha = 0.2) {
-  n <- nrow(x)
-  intercept <- (sum(x[, 1]) == n)
-  # get rid of the intercept
-  if (intercept) {
-    x <- x[, -1]
-  }
-  # get optimal SSPs, the pilot sample, the pilot estimator
-  # and the M estimated by the pilot sample
-  t_ssp <- system.time(ssps <- semi_rk_ssp(x, y, delta, r0, ssp_type, alpha))
-  if (ssps$converge != 0) {
-    stop(paste0("Fail to get a converging pilot
-    estimator. The converging code is ", ssps$converge))
-  }
-  pi <- ssps$ssp # optimal SSPs
-  ind_r <- sample(n, r, prob = pi, replace = TRUE) # index of second-step subsample
-  t_est <- system.time({
-    if (ssp_type == "uniform") {
-      ind_st <- c(ind_r, ssps$index.pilot)
-      # using uniform SSPs as the control group
-      # combine pilot and second-step subsample to derive the final estimator
-      est <- semi_rk_est(x[ind_st, ], y[ind_st], delta[ind_st], rep(1 / n, (r + r0)), n)
-      coe_out <- as.vector(est$coefficient)
-    } else {
-      # second-step estimator
-      est <- semi_rk_est(x[ind_r, ], y[ind_r], delta[ind_r], pi[ind_r], n)
-      coe_sec <- as.vector(est$coefficient)
-      # hessian matrix estimated by the second step subsample
-      m_sec <- r * gehan_s_jaco(
-        x[ind_r, ], y[ind_r], delta[ind_r],
-        pi[ind_r], coe_sec, n
-      )
-      m_pt <- r0 * ssps$M
-      # aggregate the pilot and second-step estimator
-      coe_out <- drop(solve(m_pt + m_sec) %*% (m_pt %*% ssps$est.pilot + m_sec %*% coe_sec))
-    }
-  })
-  iter <- est$iter
-  if (est$converge %in% c(1, 2)) {
-    stop(paste0("Fail to get a converging second-step
-    estimator. The converging code is ", est$converge))
-  }
-  t_se <- system.time({
-    if (se) {
-      ind_st <- c(ind_r, ssps$index.pilot) # combined subsample index
-      pi_st <- c(pi[ind_r], rep(1 / n, r0)) # combined SSPs
-      # estimating function estimated by the combined subsample
-      g <- gehan_s_mtg(
-        x[ind_st, ], y[ind_st], delta[ind_st], pi_st,
-        coe_out, seq_along(ind_st) - 1, n
-      )
-      # estimate vc
-      vc <- crossprod(g) * (r + r0)
-      vc_add <- crossprod(pi_st * g, g) * (r + r0) * n
-      vc_amend <- vc + ((r + r0) / n) * vc_add
-      # inverse of the hessian matrix estimated by the second step subsample
-      m_inv <- solve(gehan_s_jaco(
-        x[ind_st, ], y[ind_st], delta[ind_st], pi_st, coe_out, n
-      ))
-      # sandwich estimator for full estimator
-      vx <- m_inv %*% vc %*% m_inv / (r + r0)
-      std <- c(sqrt(diag(vx)))
-      # sandwich estimator for true coe
-      vx_amend <- m_inv %*% vc_amend %*% m_inv / (r + r0)
-      std_amend <- c(sqrt(diag(vx_amend)))
-    } else {
-      std <- std_amend <- NA
-    }
-  })
-  if (is.null(colnames(x))) {
-    names(coe_out) <- paste0("Beta", seq_len(ncol(x)))
-    names(std) <- names(std_amend) <- paste0("Beta", seq_len(ncol(x)))
-  } else {
-    names(coe_out) <- colnames(x)
-    names(std) <- names(std_amend) <- colnames(x)
-  }
-  # add an intercept term if elements in the first column in x are 1's
-  t_est_itcpt <- system.time({
-    if (intercept) {
-      tmp <- names(coe_out)
-      coe_out <- c(max(eres(
-        (y[ind_st] - x[ind_st, ] %*% coe_out),
-        delta[ind_st], pi_st, (r + r0)
-      )[[2]]), coe_out)
-      names(coe_out) <- c("intercept", tmp)
-    }
-  })
-  time <- cbind(t_ssp, t_est + t_est_itcpt, t_se)
-  colnames(time) <- c("SSPs", "Est", "SE")
   return(list(
     coe = coe_out, std = std, std_amend = std_amend,
     iter = iter, converge = 0, time = time
   ))
 }
+
+

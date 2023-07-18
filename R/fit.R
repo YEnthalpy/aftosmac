@@ -92,7 +92,7 @@ rankFit.gehan.s <- function(DF, engine) {
                    maxit = engine@maxit)
   )
   conv <- out$termcd
-  coe <- out$x
+  coe <- as.vector(out$x)
   if (conv == 1) {
     conv <- 0
   } else if (conv %in% c(2, 4)) {
