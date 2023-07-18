@@ -78,12 +78,12 @@ lsFit <- function(DF, engine) {
 }
 
 rankFit.gehan.s <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
+  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
   out <- nleqslv::nleqslv(
-    x = engine@b0, fn = function(b) {
+    x = engine@b0[-1], fn = function(b) {
       colSums(gehan_smth(xmat, y, delta, ssps, b, engine@n))
     }, jac = function(b) {
       gehan_s_jaco(xmat, y, delta, ssps, b, engine@n)
@@ -107,12 +107,12 @@ rankFit.gehan.s <- function(DF, engine) {
 }
 
 rankFit.gehan.ns <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
+  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
   out <- nleqslv::nleqslv(
-    x = engine@b0, fn = function(b) {
+    x = engine@b0[-1], fn = function(b) {
       colSums(gehan_ns(xmat, y, delta, b, ssps, engine@n))
     }, method = "Broyden", jacobian = FALSE,
     control = list(ftol = engine@tol, xtol = 1e-20,

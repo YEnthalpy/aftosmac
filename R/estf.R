@@ -14,23 +14,22 @@ eres <- function(e, delta, pi, ind_km) {
 }
 
 lsEst <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
   beta <- engine@b
-  n <- engine@n
-  cxmat <- center(xmat[, -1], ssps, n)
+  cxmat <- center(xmat[, -1], ssps, engine@n)
   py <- xmat %*% beta
   tmp <- eres((y - py), delta, ssps, engine@ind_sub)[[1]]
   hy <- delta * y + (1 - delta) * (tmp + py)
-  cy <- hy - mean(hy / ssps) / n
+  cy <- hy - mean(hy / ssps) / engine@n
   beta <- beta[-1]
-  cxmat * drop(cy - cxmat %*% beta) / ssps / n
+  cxmat * drop(cy - cxmat %*% beta) / ssps / engine@n
 }
 
 rankEst.gehan.s <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
@@ -38,7 +37,7 @@ rankEst.gehan.s <- function(DF, engine) {
 }
 
 rankEst.gehan.ns <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
@@ -46,7 +45,7 @@ rankEst.gehan.ns <- function(DF, engine) {
 }
 
 parEst.weibull <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps

@@ -24,8 +24,6 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
     stop("aftsrr only supports Surv object with right censoring.", call. = FALSE)
   formula[[2]] <- NULL
   DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
-  # intercept is added in method functions if needed
-  DF <- DF[, -which(colnames(DF) == "(Intercept)")]
   if (fitMtd == "ls") {
     method <- "semi.ls"
   }else if (fit.Mtd == "rank") {
@@ -39,9 +37,9 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (engine@b0 == 0) {
     engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
   }else if (engine@b0 == 1) {
-    engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1])$coefficient)[-1]
+    engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1], intercept = FALSE)$coefficient)
   }
-  if (length(engine@b0) != ncol(DF) - 2)
+  if (length(engine@b0) != ncol(DF)-2)
     stop("Initial value length does not match with the numbers of covariates",
          call. = FALSE)
   # get optimal SSPs
@@ -52,6 +50,7 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (optSSPs$converge != 0) {
     stop(paste0("Fail to get a converging pilot estimator. The converging code is ", ssps$converge))
   }
+  DF$ssps <- optSSPs$ssp
   indPt <- optSSPs$ind.pt
   # sample with replacement
   indSec <- sample(engine@n, r, prob = optSSPs$ssp, replace = TRUE)
@@ -75,8 +74,8 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
     engine@b <- est.snd$coe
     M.snd <- r * aftosmac.slope(DF.snd, engine)
     engine@b <- optSSPs$coe.pt
-    M.pt <- r0 * aftosmac.slope(DF[indPt], engine) # wrong
-    estOut <- drop(solve(M.pt + M.snd) %*% (M.pt %*% optSSPs$coe.pt + M.snd %*% est.snd$coe))
+    estOut <- drop(solve(r0 * optSSPs$M.pt + M.snd) %*%
+                     (r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% est.snd$coe))
   }
   if (!is.NULL(se)) {
     indSamp <- c(indPt, indSec)
