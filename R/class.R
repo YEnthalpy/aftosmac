@@ -2,9 +2,9 @@
 setClass("Engine",
          representation(tol = "numeric", b0 = "numeric", b = "numeric",
                         maxit = "numeric", n = "numeric", ind_sub = "numberic",
-                        B = "numeric"),
+                        B = "numeric", r0 = "numeric", alpha = "numeric"),
          prototype(tol = 1e-5, b0 = 0, b = 0, maxit = 1000,
-                   n = 0, ind_sub = 0, B = 100),
+                   n = 0, ind_sub = 0, B = 20, r0 = 0, alpha = 0.2),
          contains = "VIRTUAL")
 
 setClass("semi.ls", contains = "Engine")

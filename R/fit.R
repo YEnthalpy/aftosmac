@@ -105,3 +105,30 @@ rankFit.gehan.s <- function(DF, engine) {
   names(coe) <- paste0("beta", seq_len(ncol(xmat)))
   return(list(coe = coe, converge = conv, iter = out$nfcnt))
 }
+
+rankFit.gehan.ns <- function(DF, engine) {
+  xmat <- as.matrix(DF$covaraites)[, -1]
+  y <- log(DF$time)
+  delta <- DF$delta
+  ssps <- DF$ssps
+  out <- nleqslv::nleqslv(
+    x = engine@b0, fn = function(b) {
+      colSums(gehan_ns(xmat, y, delta, b, ssps, engine@n))
+    }, method = "Broyden", jacobian = FALSE,
+    control = list(ftol = engine@tol, xtol = 1e-20,
+                   maxit = engine@maxit)
+  )
+  conv <- out$termcd
+  coe <- out$x
+  if (conv == 1) {
+    conv <- 0
+  } else if (conv %in% c(2, 4)) {
+    conv <- 2
+    coe <- rep(NA, ncol(xmat))
+  } else {
+    conv <- 1
+    coe <- rep(NA, ncol(xmat))
+  }
+  names(coe) <- paste0("beta", seq_len(ncol(xmat)))
+  return(list(coe = coe, converge = conv, iter = out$nfcnt))
+}

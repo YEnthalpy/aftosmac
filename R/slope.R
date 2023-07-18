@@ -1,5 +1,9 @@
 lsSlp <- function(DF, engine) {
+  estSlp(DF, engine, fitMtd = "ls")
+}
 
+rankSlp.gehan.ns <- function(DF, engine) {
+  estSlp(DF, engine, fitMtd = "rank", rankWt = "gehan")
 }
 
 rankSlp.gehan.s <- function(DF, engine) {
@@ -33,7 +37,6 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
   ssps <- DF$ssps
   p <- ncol(xmat) - 1
   r <- length(y)
-  z <- matrix(rexp(engine@B * r), nrow = r, byrow = FALSE)
   fitMtd <- match.arg(fitMtd)
   rankWt <- match.arg(rankWt)
   if (fitMtd == "ls") {
@@ -42,24 +45,19 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
     method <- paste("semi", fitMtd, rankWt, "s", sep = ".")
   }
   engine <- do.call("new", list(Class = method))
-
-  g <- uls(x, y, delta, beta, pi, n, seq_along(y))
+  z <- matrix(rexp(engine@B * r), nrow = r, byrow = FALSE)
+  g <- aftosmac.est(DF = DF, engine = engine)
   v <- var(crossprod(z, g)) / r
-  zbs <- matrix(ifelse(rbinom(b * p, 1, 0.5) == 1, 1, -1),
-                ncol = p, byrow = TRUE
-  )
+  zbs <- matrix(ifelse(rbinom(engine@B * p, 1, 0.5) == 1, 1, -1),
+                ncol = p, byrow = TRUE)
   zb <- zbs %*% with(eigen(v), vectors %*% (values^(-0.5) * t(vectors)))
-  beta1 <- zb / sqrt(r) + matrix(rep(beta[-1], b),
-                                 ncol = p,
-                                 byrow = TRUE
-  )
-  beta1 <- cbind(rep(beta[1], b), beta1)
-  response <- matrix(NA, nrow = b, ncol = p)
-  for (i in seq_len(b)) {
-    response[i, ] <- colSums(uls(
-      x, y, delta, beta1[i, ],
-      pi, n, seq_along(y)
-    )) / sqrt(r)
+  # need to define b, B and ind_sub
+  beta1 <- zb / sqrt(r) + matrix(rep(engine@b, engine@B), ncol = p, byrow = TRUE)
+  beta1 <- cbind(rep(beta[1], engine@B), beta1)
+  response <- matrix(NA, nrow = engine@B, ncol = p)
+  for (i in seq_len(engine@B)) {
+    engine@b <- beta1[i, ]
+    response[i, ] <- colSums(aftosmac.est(DF = DF, engine = engine)) / sqrt(r)
   }
-  return(t(lsfit(zb, response, intercept = FALSE)$coefficients))
+  t(lsfit(zb, response, intercept = FALSE)$coefficients)
 }

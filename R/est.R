@@ -22,6 +22,14 @@ rankEst.gehan.s <- function(DF, engine) {
   gehan_s_mtg(xmat, y, delta, ssps, engine@b, engine@ind_sub-1, engine@n)
 }
 
+rankEst.gehan.ns <- function(DF, engine) {
+  xmat <- as.matrix(DF$covaraites)
+  y <- log(DF$time)
+  delta <- DF$delta
+  ssps <- DF$ssps
+  gehan_ns_mtg(xmat, y, delta, ssps, engine@b, engine@ind_sub-1, engine@n)
+}
+
 parEst.weibull <- function(DF, engine) {
   xmat <- as.matrix(DF$covaraites)
   y <- log(DF$time)
