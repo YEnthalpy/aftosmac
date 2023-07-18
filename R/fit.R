@@ -1,7 +1,7 @@
 parFit.weibull <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
-  delta <- DF$delta
+  delta <- DF$status
   ssps <- DF$ssps
   beta <- engine@b0[-1]
   sigma <- engine@b0[1]
@@ -42,7 +42,7 @@ parFit.weibull <- function(DF, engine) {
 }
 
 lsFit <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)
+  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
@@ -78,7 +78,7 @@ lsFit <- function(DF, engine) {
 }
 
 rankFit.gehan.s <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)[, -1]
+  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps
@@ -107,7 +107,7 @@ rankFit.gehan.s <- function(DF, engine) {
 }
 
 rankFit.gehan.ns <- function(DF, engine) {
-  xmat <- as.matrix(DF$covaraites)[, -1]
+  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
   delta <- DF$delta
   ssps <- DF$ssps

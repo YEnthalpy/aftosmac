@@ -44,6 +44,8 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (length(engine@b0) != ncol(DF) - 2)
     stop("Initial value length does not match with the numbers of covariates",
          call. = FALSE)
+  # get optimal SSPs
+  engine@r0 <- r0
   engine@n <- nrow(DF)
   optSSPs <- aftosmac.ssps(DF, engine, fitMtd = fitMtd,
                            rankWt = rankWt, sspType = sspType)
