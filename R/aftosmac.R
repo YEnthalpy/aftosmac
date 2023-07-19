@@ -27,6 +27,8 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (fitMtd == "ls") {
     method <- "semi.ls"
   }else if (fit.Mtd == "rank") {
+    # delete intercept for rank-based approach
+    DF <- DF[,-which(colnames(DF) == "(Intercept)")]
     method <- paste("semi", fitMtd, rankWt, eqType, sep = ".")
   }else if (fit.Mtd == "par") {
     method <- paste(fit.Mtd, parDist, sep = ".")
@@ -37,11 +39,19 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (engine@b0 == 0) {
     engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
   }else if (engine@b0 == 1) {
-    engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1], intercept = FALSE)$coefficient)
+    if (fit.Mtd == "rank") {
+      engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1])$coefficient)[-1]
+    }else {
+      engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1], intercept = FALSE)$coefficient)
+    }
   }
-  if (length(engine@b0) != ncol(DF)-2)
+  if (length(engine@b0) != ncol(DF)-2) {
     stop("Initial value length does not match with the numbers of covariates",
          call. = FALSE)
+  }
+  if (fit.Mtd == "par") {
+    engine@b0 <- c(1, engine@b0)
+  }
   # get optimal SSPs
   engine@r0 <- r0
   engine@n <- nrow(DF)

@@ -16,44 +16,30 @@ eres <- function(e, delta, pi, ind_km) {
 lsEst <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
   y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
-  beta <- engine@b
-  cxmat <- center(xmat[, -1], ssps, engine@n)
-  py <- xmat %*% beta
-  tmp <- eres((y - py), delta, ssps, engine@ind_sub)[[1]]
-  hy <- delta * y + (1 - delta) * (tmp + py)
-  cy <- hy - mean(hy / ssps) / engine@n
-  beta <- beta[-1]
-  cxmat * drop(cy - cxmat %*% beta) / ssps / engine@n
+  cxmat <- center(xmat[, -1], DF$ssps, engine@n)
+  py <- xmat %*% engine@b
+  tmp <- eres((y - py), DF$status, DF$ssps, engine@ind_sub)[[1]]
+  hy <- DF$status * y + (1 - DF$status) * (tmp + py)
+  cy <- hy - mean(hy / DF$ssps) / engine@n
+  cxmat * drop(cy - cxmat %*% engine@b[-1]) / DF$ssps / engine@n
 }
 
 rankEst.gehan.s <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
-  y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
-  gehan_s_mtg(xmat, y, delta, ssps, engine@b, engine@ind_sub-1, engine@n)
+  gehan_s_mtg(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time), DF$status,
+              DF$ssps, engine@b, engine@ind_sub-1, engine@n)
 }
 
 rankEst.gehan.ns <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
-  y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
-  gehan_ns_mtg(xmat, y, delta, ssps, engine@b, engine@ind_sub-1, engine@n)
+  gehan_ns_mtg(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time),
+               DF$status, DF$ssps, engine@b, engine@ind_sub-1, engine@n)
 }
 
 parEst.weibull <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
-  y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
-  sigma <- engine@b[1]
-  er <- drop((y - xmat %*% engine@b[-1]) / sigma)
+  er <- drop((log(DF$time) - xmat %*% engine@b[-1]) / engine@b[1])
   exper <- exp(er)
-  d.beta <- xmat * (exper - delta) / ssps / sigma
-  d.sig <- (er * exper - delta * er - delta) / ssps / sigma
+  d.beta <- xmat * (exper - DF$status) / DF$ssps / engine@b[1]
+  d.sig <- (er * exper - DF$status * er - DF$status) / DF$ssps / engine@b[1]
   cbind(d.sig, d.beta)
 }
 

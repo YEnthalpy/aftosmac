@@ -9,23 +9,19 @@ rankSlp.gehan.ns <- function(DF, engine) {
 rankSlp.gehan.s <- function(DF, engine) {
   xmat <- as.matrix(DF$covaraites)
   y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
-  gehan_s_jaco(xmat, y, delta, ssps, engine@b, engine@n)
+  gehan_s_jaco(xmat, y, DF$status, DF$ssps, engine@b, engine@n)
 }
 
 parSlp.weibull <- function(DF, engine) {
   xmat <- as.matrix(DF$covaraites)
   y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
   sigma <- engine@b[1]
   er <- drop((y - xmat %*% engine@b[-1]) / sigma)
   exper <- exp(er)
-  d2.beta <- -t(xmat * exper  / ssps) %*% xmat / (sigma^2)
-  d2.sig <- sum((delta + 2 * er * (delta - exper) - (er^2)
-                 * exper) / ssps) / (sigma^2)
-  d2.sigbeta <- colSums((xmat * (delta - exper * (1 + er)))) / (sigma ^ 2)
+  d2.beta <- -t(xmat * exper  / DF$ssps) %*% xmat / (sigma^2)
+  d2.sig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
+                 * exper) / DF$ssps) / (sigma^2)
+  d2.sigbeta <- colSums((xmat * (DF$status - exper * (1 + er)))) / (sigma ^ 2)
   cbind(c(d2.sig, d2.sigbeta), rbind(t(d2.sigbeta), d2.beta))
 }
 
@@ -33,7 +29,6 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
                    rankWt = c("gehan")) {
   xmat <- as.matrix(DF$covaraites)
   y <- log(DF$time)
-  delta <- DF$delta
   ssps <- DF$ssps
   p <- ncol(xmat) - 1
   r <- length(y)

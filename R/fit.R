@@ -1,7 +1,6 @@
 parFit.weibull <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
-  delta <- DF$status
   ssps <- DF$ssps
   beta <- engine@b0[-1]
   sigma <- engine@b0[1]
@@ -10,7 +9,7 @@ parFit.weibull <- function(DF, engine) {
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
     # first derivative with respect to beta
-    d.beta <- colSums(xmat * (exper - delta) / ssps / sigma)
+    d.beta <- colSums(xmat * (exper - DF$status) / ssps / sigma)
     # second derivative with respec to beta
     d2.beta <- -t(xmat * exper / ssps) %*% xmat / (sigma^2)
     updBeta <- tryCatch(
@@ -26,9 +25,9 @@ parFit.weibull <- function(DF, engine) {
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
     # first derivative with respect to sigma
-    d.sig <- sum((er * exper - delta * er - delta) / ssps / sigma)
+    d.sig <- sum((er * exper - DF$status * er - DF$status) / ssps / sigma)
     # second derivative with respect to sigma
-    d2.sig <- sum((delta + 2 * er * (delta - exper) - (er^2)
+    d2.sig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
                    * exper) / ssps) / (sigma^2)
     updSig <- -d.sig / d2.sig
     sigma <- sigma + updSig
@@ -44,18 +43,16 @@ parFit.weibull <- function(DF, engine) {
 lsFit <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
   beta <- engine@b0
   r <- length(y)
-  cxmat <- center(xmat[, -1], ssps, engine@n)
+  cxmat <- center(xmat[, -1], DF$ssps, engine@n)
   for (i in seq_len(engine@maxit)) {
     py <- xmat %*% beta
-    tmp <- eres((y - py), delta, ssps, seq_len(r))[[1]]
-    hy <- delta * y + (1 - delta) * (tmp + py)
-    cy <- drop(hy - mean(hy / ssps) / engine@n)
+    tmp <- eres((y - py), DF$status, DF$ssps, seq_len(r))[[1]]
+    hy <- DF$status * y + (1 - DF$status) * (tmp + py)
+    cy <- drop(hy - mean(hy / DF$ssps) / engine@n)
     newBeta <- tryCatch(
-      solve(crossprod(cxmat, cxmat / ssps), colSums(cxmat * cy / ssps)),
+      solve(crossprod(cxmat, cxmat / DF$ssps), colSums(cxmat * cy / DF$ssps)),
       error = function(e) NA,
       warning = function(w) NA
     )
@@ -64,7 +61,7 @@ lsFit <- function(DF, engine) {
     }
     newBeta <- c(NA, drop(newBeta))
     newBeta[1] <- max(eres((y - xmat[, -1] %*% newBeta[-1]),
-                           delta, ssps, seq_len(r))[[2]])
+                           DF$status, ssps, seq_len(r))[[2]])
     e <- sqrt(sum(newBeta - beta)^2)
     if (e < engine@tol) {
       return(list(coe = newBeta, converge = 0, ite = i))
@@ -78,15 +75,12 @@ lsFit <- function(DF, engine) {
 }
 
 rankFit.gehan.s <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
-  y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
+  xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
   out <- nleqslv::nleqslv(
     x = engine@b0[-1], fn = function(b) {
-      colSums(gehan_smth(xmat, y, delta, ssps, b, engine@n))
+      colSums(gehan_smth(xmat, log(DF$time), DF$status, DF$ssps, b, engine@n))
     }, jac = function(b) {
-      gehan_s_jaco(xmat, y, delta, ssps, b, engine@n)
+      gehan_s_jaco(xmat, log(DF$time), DF$status, DF$ssps, b, engine@n)
     }, method = "Broyden", jacobian = FALSE,
     control = list(ftol = engine@tol, xtol = 1e-20,
                    maxit = engine@maxit)
@@ -107,13 +101,11 @@ rankFit.gehan.s <- function(DF, engine) {
 }
 
 rankFit.gehan.ns <- function(DF, engine) {
-  xmat <- as.matrix(DF[, -c(1:3, ncol(DF))])
-  y <- log(DF$time)
-  delta <- DF$delta
-  ssps <- DF$ssps
+  xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
   out <- nleqslv::nleqslv(
     x = engine@b0[-1], fn = function(b) {
-      colSums(gehan_ns(xmat, y, delta, b, ssps, engine@n))
+      colSums(gehan_ns(xmat, log(DF$time),
+                       DF$status, b, DF$ssps, engine@n))
     }, method = "Broyden", jacobian = FALSE,
     control = list(ftol = engine@tol, xtol = 1e-20,
                    maxit = engine@maxit)
