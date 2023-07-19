@@ -31,6 +31,6 @@ aftosmac.ssps <- function(DF, engine, fitMtd = c("rank", "ls"),
       ssp <- m_mse / sum(m_mse) * (1 - engine@alpha) + engine@alpha / engine@n
     }
     return(list(ssp = ssp, M.pt = m, ind.pt = ind_pt,
-                converge = 0, coe.pt = bt_pt))
+                converge = 0, coe.pt = mle_pt$coe))
   }
 }

@@ -1,3 +1,4 @@
+#' @export
 aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
                      rankWt = c("gehan"), parDist = c("weibull"),
                      eqType = c("s", "ns"),
@@ -26,12 +27,12 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
   if (fitMtd == "ls") {
     method <- "semi.ls"
-  }else if (fit.Mtd == "rank") {
+  }else if (fitMtd == "rank") {
     # delete intercept for rank-based approach
     DF <- DF[,-which(colnames(DF) == "(Intercept)")]
     method <- paste("semi", fitMtd, rankWt, eqType, sep = ".")
-  }else if (fit.Mtd == "par") {
-    method <- paste(fit.Mtd, parDist, sep = ".")
+  }else if (fitMtd == "par") {
+    method <- paste(fitMtd, parDist, sep = ".")
   }
   # create engine
   engine.control <- control[names(control) %in% names(attr(getClass(method), "slots"))]
@@ -39,7 +40,7 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (engine@b0 == 0) {
     engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
   }else if (engine@b0 == 1) {
-    if (fit.Mtd == "rank") {
+    if (fitMtd == "rank") {
       engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1])$coefficient)[-1]
     }else {
       engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1], intercept = FALSE)$coefficient)
@@ -49,7 +50,7 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
     stop("Initial value length does not match with the numbers of covariates",
          call. = FALSE)
   }
-  if (fit.Mtd == "par") {
+  if (fitMtd == "par") {
     engine@b0 <- c(1, engine@b0)
   }
   # get optimal SSPs

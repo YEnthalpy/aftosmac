@@ -36,7 +36,7 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
   rankWt <- match.arg(rankWt)
   if (fitMtd == "ls") {
     method <- "semi.ls"
-  }else if (fit.Mtd == "rank") {
+  }else if (fitMtd == "rank") {
     method <- paste("semi", fitMtd, rankWt, "s", sep = ".")
   }
   engine <- do.call("new", list(Class = method))
@@ -56,3 +56,11 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
   }
   t(lsfit(zb, response, intercept = FALSE)$coefficients)
 }
+
+## Generic function -- slopes of estimating functions
+setGeneric("aftosmac.slope", function(DF, engine) standardGeneric("aftosmac.slope"))
+
+setMethod("aftosmac.slope", signature(engine = "semi.ls"), lsSlp)
+setMethod("aftosmac.slope", signature(engine = "semi.rank.gehan.s"), rankSlp.gehan.s)
+setMethod("aftosmac.slope", signature(engine = "semi.rank.gehan.ns"), rankSlp.gehan.ns)
+setMethod("aftosmac.slope", signature(engine = "par.weibull"), parSlp.weibull)

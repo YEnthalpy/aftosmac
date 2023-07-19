@@ -43,5 +43,11 @@ parEst.weibull <- function(DF, engine) {
   cbind(d.sig, d.beta)
 }
 
+## Generic function -- estimating functions
+setGeneric("aftosmac.est", function(DF, engine) standardGeneric("aftosmac.est"))
 
+setMethod("aftosmac.est", signature(engine = "semi.ls"), lsEst)
+setMethod("aftosmac.est", signature(engine = "semi.rank.gehan.s"), rankEst.gehan.s)
+setMethod("aftosmac.est", signature(engine = "semi.rank.gehan.ns"), rankEst.gehan.ns)
+setMethod("aftosmac.est", signature(engine = "par.weibull"), parEst.weibull)
 

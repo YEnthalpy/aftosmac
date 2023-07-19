@@ -57,11 +57,11 @@ lsFit <- function(DF, engine) {
       warning = function(w) NA
     )
     if (is.na(newBeta[1])) {
-      return(list(coe = rep(NA, ncol(x)), converge = 1, ite = NA))
+      return(list(coe = rep(NA, ncol(xmat)), converge = 1, ite = NA))
     }
     newBeta <- c(NA, drop(newBeta))
     newBeta[1] <- max(eres((y - xmat[, -1] %*% newBeta[-1]),
-                           DF$status, ssps, seq_len(r))[[2]])
+                           DF$status, DF$ssps, seq_len(r))[[2]])
     e <- sqrt(sum(newBeta - beta)^2)
     if (e < engine@tol) {
       return(list(coe = newBeta, converge = 0, ite = i))
@@ -124,3 +124,12 @@ rankFit.gehan.ns <- function(DF, engine) {
   names(coe) <- paste0("beta", seq_len(ncol(xmat)))
   return(list(coe = coe, converge = conv, iter = out$nfcnt))
 }
+
+
+## Generic function -- subsample estimates
+setGeneric("aftosmac.fit", function(DF, engine) standardGeneric("aftosmac.fit"))
+
+setMethod("aftosmac.fit", signature(engine = "semi.ls"), lsFit)
+setMethod("aftosmac.fit", signature(engine = "semi.rank.gehan.s"), rankFit.gehan.s)
+setMethod("aftosmac.fit", signature(engine = "semi.rank.gehan.ns"), rankFit.gehan.ns)
+setMethod("aftosmac.fit", signature(engine = "par.weibull"), parFit.weibull)
