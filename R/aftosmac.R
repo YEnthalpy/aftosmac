@@ -1,3 +1,40 @@
+#' Optimal Subsampling Method for Accelerated Failure Time Models.
+#'
+#' Estimate the full data statistical inferences based on a subsample. The
+#' subsample is derived by sampling with probabilities. The sampling probabilities
+#' is defined by the A-optimality and L-optimality from optimal design of
+#' experiments.
+#'
+#' @param formula  a formula expression, of the form \code{response ~ predictors}.
+#'     The \code{response} is a \code{Surv} object with right censoring.
+#' @param data an optional data.frame in which to interpret the variables occurring
+#'     in the \code{formula}.
+#' @param control controls maxiter and tolerance.
+#' @param r0 the pilot subsample size.
+#' @param r the second-step subsample size.
+#' @param sspType the type of optimal subsampling probabilities.
+#' @param B number of subsmaples needed to derive the final estimator
+#' @param R the number of noises used in the resampling approach.
+#' @param rankWt the type of weight function when using rank-based semiparametric approach.
+#' @param parDist the error distribution when using parametric approach.
+#' @param eqType the type of estimating function when using rank-based semiparametric approach.
+#' @param fitMtd the model to derive the estimator.
+#' @param estMtd method to combine subsamples or combine estimators.
+#' @param se method to calculate the standard errors.
+#'
+#' @return The function return a list containing at least the following components:
+#' \describe{
+#'   \item{coe}{a vector of point estimates}
+#'   \item{std}{a vector of estimated standard errors}
+#'   \item{converge}{indicator of convergence}
+#'   \item{iter}{iteration needed to get the converging result}
+
+#' }
+#'
+#' @export
+#' @keywords aftosmac
+#'
+
 aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
                      rankWt = c("gehan"), parDist = c("weibull"),
                      eqType = c("s", "ns"),
