@@ -53,17 +53,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// gehan_mtg
-arma::mat gehan_mtg(arma::mat x, arma::vec d, arma::vec e, arma::uvec ind);
-RcppExport SEXP _aftosmac_gehan_mtg(SEXP xSEXP, SEXP dSEXP, SEXP eSEXP, SEXP indSEXP) {
+// gehan_ns_mtg
+arma::mat gehan_ns_mtg(arma::mat x, arma::vec y, arma::vec d, arma::vec beta, arma::uvec ind);
+RcppExport SEXP _aftosmac_gehan_ns_mtg(SEXP xSEXP, SEXP ySEXP, SEXP dSEXP, SEXP betaSEXP, SEXP indSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::vec >::type d(dSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type e(eSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type beta(betaSEXP);
     Rcpp::traits::input_parameter< arma::uvec >::type ind(indSEXP);
-    rcpp_result_gen = Rcpp::wrap(gehan_mtg(x, d, e, ind));
+    rcpp_result_gen = Rcpp::wrap(gehan_ns_mtg(x, y, d, beta, ind));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -121,7 +122,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_aftosmac_center", (DL_FUNC) &_aftosmac_center, 3},
     {"_aftosmac_km", (DL_FUNC) &_aftosmac_km, 3},
     {"_aftosmac_gehan_ns", (DL_FUNC) &_aftosmac_gehan_ns, 6},
-    {"_aftosmac_gehan_mtg", (DL_FUNC) &_aftosmac_gehan_mtg, 4},
+    {"_aftosmac_gehan_ns_mtg", (DL_FUNC) &_aftosmac_gehan_ns_mtg, 5},
     {"_aftosmac_gehan_smth", (DL_FUNC) &_aftosmac_gehan_smth, 6},
     {"_aftosmac_gehan_s_mtg", (DL_FUNC) &_aftosmac_gehan_s_mtg, 7},
     {"_aftosmac_gehan_s_jaco", (DL_FUNC) &_aftosmac_gehan_s_jaco, 6},

@@ -1,4 +1,3 @@
-#' @export
 aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
                      rankWt = c("gehan"), parDist = c("weibull"),
                      eqType = c("s", "ns"),
@@ -24,7 +23,7 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   if (class(m[[1]]) != "Surv" || ncol(obj) > 2)
     stop("aftsrr only supports Surv object with right censoring.", call. = FALSE)
   formula[[2]] <- NULL
-  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
+  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m))) # add covariates
   if (fitMtd == "ls") {
     method <- "semi.ls"
   }else if (fitMtd == "rank") {
@@ -59,7 +58,8 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
   optSSPs <- aftosmac.ssps(DF, engine, fitMtd = fitMtd,
                            rankWt = rankWt, sspType = sspType)
   if (optSSPs$converge != 0) {
-    stop(paste0("Fail to get a converging pilot estimator. The converging code is ", ssps$converge))
+    stop(paste0("Fail to get a converging pilot estimator. The converging code is ",
+                optSSPs$converge))
   }
   DF$ssps <- optSSPs$ssp
   indPt <- optSSPs$ind.pt
@@ -70,10 +70,12 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
     sspSamp <- c(rep(1/engine@n, r0), optSSPs$ssp[indSec])
     DF.Samp <- DF[indSamp, ]
     DF.Samp$ssps <- sspSamp
-    estOut <- aftosmac.fit(DF.Samp, engine)
-    if (estOut$converge != 0) {
+    est.out <- aftosmac.fit(DF.Samp, engine)
+    coe.out <- est.out$coe
+    itr.out <- est.out$iter
+    if (est.out$converge != 0) {
       stop(paste0("Fail to get a converging second-step estimator.
-                  The converging code is ", estOut$converge))
+                  The converging code is ", est.out$converge))
     }
   }else if (estMtd == "ce") {
     DF.snd <- DF[indSec, ]
@@ -85,31 +87,35 @@ aftosmac <- function(formula, data, r0, r, sspType, B = 1, R = 20,
     engine@b <- est.snd$coe
     M.snd <- r * aftosmac.slope(DF.snd, engine)
     engine@b <- optSSPs$coe.pt
-    estOut <- drop(solve(r0 * optSSPs$M.pt + M.snd) %*%
+    coe.out <- drop(solve(r0 * optSSPs$M.pt + M.snd) %*%
                      (r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% est.snd$coe))
+    itr.out <- est.snd$iter
   }
-  if (!is.NULL(se)) {
+  if (se != "NULL") {
     indSamp <- c(indPt, indSec)
     sspSamp <- c(rep(1/engine@n, r0), optSSPs$ssp[indSec])
-    engine@b <- estOut
+    engine@b <- coe.out
     engine@ind_sub <- seq_len(r + r0)
     g <- aftosmac.est(DF[indSamp, ], engine)
     vc <- crossprod(g) * (r + r0)
-    vc_add <- crossprod(sspSamp * g, g) * (r + r0) * engine@n
-    vc_amend <- vc + ((r + r0) / engine@n) * vc_add
     # inverse of the hessian matrix estimated by the second step subsample
     m_inv <- solve(aftosmac.slope(DF[indSamp, ], engine))
     # sandwich estimator for full estimator
     vx <- m_inv %*% vc %*% m_inv / (r + r0)
     std <- c(sqrt(diag(vx)))
     # sandwich estimator for true coe
-    vx_amend <- m_inv %*% vc_amend %*% m_inv / (r + r0)
-    std_amend <- c(sqrt(diag(vx_amend)))
+    if (se == "parTrue") {
+      vc_add <- crossprod(sspSamp * g, g) * (r + r0) * engine@n
+      vc_amend <- vc + ((r + r0) / engine@n) * vc_add
+      vx_amend <- m_inv %*% vc_amend %*% m_inv / (r + r0)
+      std <- c(sqrt(diag(vx_amend)))
+    }
+    names(coe.out) <- names(std) <- colnames(DF[, -c(1, 2, ncol(DF))])
+  }else {
+    names(coe.out) <- colnames(DF[, -c(1, 2, ncol(DF))])
+    std <- NA
   }
-  return(list(
-    coe = coe_out, std = std, std_amend = std_amend,
-    iter = iter, converge = 0, time = time
-  ))
+  return(list(coe = coe.out, std = std, converge = 0, iter = itr.out))
 }
 
 

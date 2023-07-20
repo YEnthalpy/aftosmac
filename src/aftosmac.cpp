@@ -132,11 +132,12 @@ arma::mat gehan_ns(arma::mat x, arma::vec y, arma::uvec d,
 // Gehan type non-smooth estimating function expressed by well-defined martingale
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-arma::mat gehan_mtg(arma::mat x, arma::vec d, arma::vec e,
-                    arma::uvec ind)
+arma::mat gehan_ns_mtg(arma::mat x, arma::vec y, arma::vec d,
+                       arma::vec beta, arma::uvec ind)
 {
   int n = x.n_rows;
   int m = x.n_cols;
+  arma::vec e = y - x * beta;
   int r0 = ind.n_elem;
   arma::mat out(n, m);
   // Define the pilot subsample

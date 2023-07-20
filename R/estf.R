@@ -31,7 +31,7 @@ rankEst.gehan.s <- function(DF, engine) {
 
 rankEst.gehan.ns <- function(DF, engine) {
   gehan_ns_mtg(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time),
-               DF$status, DF$ssps, engine@b, engine@ind_sub-1, engine@n)
+               DF$status, engine@b, engine@ind_sub-1)
 }
 
 parEst.weibull <- function(DF, engine) {

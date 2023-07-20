@@ -1,13 +1,17 @@
 Package: aftosmac
 Type: Package
-Title: What the package does (short line)
+Title: Optimal Subsampling Method for Acceleated Failure Time Models.
+Description: Optimal Subsampling Method for Acceleated Failure Time Models.
 Version: 1.0
 Date: 2023-07-15
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
-Imports: Rcpp (>= 1.0.10), survival
+License: GPL (>= 3)
+NeedsCompilation: yes
+Imports: Rcpp, survival, nleqslv, methods
 LinkingTo: Rcpp, RcppArmadillo
-Depends: nleqslv
+Encoding: UTF-8
+Depends: R (>= 3.4.0)
+Authors@R: c(person("Zehan", "Yang", email = "zehan.yang@uconn.edu", role = c("aut", "cre")))
+Author: Zehan Yang [aut, cre]
+Maintainer: Zehan Yang <zehan.yang@uconn.edu>
 RoxygenNote: 7.2.3
+

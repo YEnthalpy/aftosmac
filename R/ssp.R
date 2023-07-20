@@ -22,10 +22,10 @@ aftosmac.ssps <- function(DF, engine, fitMtd = c("rank", "ls"),
     g <- aftosmac.est(DF = DF, engine = engine)
     m <- aftosmac.slope(DF = DF[ind_pt, ], engine = engine)
     # optimal ssps
-    if (ssp_type == "optL") {
+    if (sspType == "optL") {
       g_nm <- sqrt(rowSums(g^2))
       ssp <- g_nm / sum(g_nm) * (1 - engine@alpha) + engine@alpha / engine@n
-    } else if (ssp_type == "optA") {
+    } else if (sspType == "optA") {
       m_inv <- solve(m)
       m_mse <- sqrt(colSums((tcrossprod(m_inv, g))^2))
       ssp <- m_mse / sum(m_mse) * (1 - engine@alpha) + engine@alpha / engine@n
