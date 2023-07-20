@@ -25,4 +25,10 @@ Survival Data.  2022; 27): 5421–5431.
 \author{
 \strong{Maintainer}: Zehan Yang \email{zehan.yang@uconn.edu}
 
+Authors:
+\itemize{
+  \item Jun Yan
+  \item HaiYing Wang
+}
+
 }
