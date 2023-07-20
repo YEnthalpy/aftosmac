@@ -1,17 +1,1 @@
-Package: aftosmac
-Type: Package
-Title: Optimal Subsampling Method for Acceleated Failure Time Models.
-Description: Optimal Subsampling Method for Acceleated Failure Time Models.
-Version: 1.0
-Date: 2023-07-15
-License: GPL (>= 3)
-NeedsCompilation: yes
-Imports: Rcpp, survival, nleqslv, methods
-LinkingTo: Rcpp, RcppArmadillo
-Encoding: UTF-8
-Depends: R (>= 3.4.0)
-Authors@R: c(person("Zehan", "Yang", email = "zehan.yang@uconn.edu", role = c("aut", "cre")))
-Author: Zehan Yang [aut, cre]
-Maintainer: Zehan Yang <zehan.yang@uconn.edu>
-RoxygenNote: 7.2.3
-
+Package: aftosmacType: PackageTitle: Optimal Subsampling Method for Acceleated Failure Time Models.Description: Optimal Subsampling Method for Acceleated Failure Time Models.Version: 1.0Date: 2023-07-15License: GPL (>= 3)NeedsCompilation: yesImports: Rcpp, survival, nleqslv, methodsLinkingTo: Rcpp, RcppArmadilloEncoding: UTF-8Depends: R (>= 3.4.0)Authors@R: c(person("Zehan", "Yang", email = "zehan.yang@uconn.edu", role = c("aut", "cre")),	   person("Jun", "Yan", role = "aut"),	   person("HaiYing", "Wang", role = "aut"))Author: Zehan Yang [aut, cre],  Jun Yan [aut],  HaiYing Wang [aut]Maintainer: Zehan Yang <zehan.yang@uconn.edu>RoxygenNote: 7.2.3

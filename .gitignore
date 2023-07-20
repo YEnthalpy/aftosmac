@@ -3,5 +3,8 @@
 .RData
 .Ruserdata
 .DS_Store
-.Rproj
+*.Rproj
+*.Rbuildignore
+*.o
+*.so
 creat.R
