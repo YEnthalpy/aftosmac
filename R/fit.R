@@ -17,8 +17,8 @@ parFit.weibull <- function(DF, engine) {
       error = function(e) NA,
       warning = function(w) NA
     )
-    if (is.na(updBeta)) {
-      return(list(coe = rep(NA, ncol(xmat)+1), converge = 1, ite = NA))
+    if (is.na(updBeta[1])) {
+      return(list(coe = rep(NA, ncol(xmat)+1), converge = 1, iter = NA))
     }
     beta <- beta + updBeta
     # update sigma
@@ -32,10 +32,10 @@ parFit.weibull <- function(DF, engine) {
     updSig <- -d.sig / d2.sig
     sigma <- sigma + updSig
     if (sqrt(sum(updSig^2 + updBeta^2)) <= engine@tol) {
-      return(list(coe = c(sigma, beta), converge = 0, ite = i))
+      return(list(coe = c(sigma, beta), converge = 0, iter = i))
     }
     if (i == engine@maxit) {
-      return(list(coe = c(sigma, beta), converge = 2, ite = i))
+      return(list(coe = c(sigma, beta), converge = 2, iter = i))
     }
   }
 }
@@ -57,28 +57,30 @@ lsFit <- function(DF, engine) {
       warning = function(w) NA
     )
     if (is.na(newBeta[1])) {
-      return(list(coe = rep(NA, ncol(xmat)), converge = 1, ite = NA))
+      return(list(coe = rep(NA, ncol(xmat)), converge = 1, iter = NA))
     }
     newBeta <- c(NA, drop(newBeta))
     newBeta[1] <- max(eres((y - xmat[, -1] %*% newBeta[-1]),
                            DF$status, DF$ssps, seq_len(r))[[2]])
-    e <- sqrt(sum(newBeta - beta)^2)
+    e <- sqrt(sum((newBeta - beta)^2))
     if (e < engine@tol) {
-      return(list(coe = newBeta, converge = 0, ite = i))
+      return(list(coe = newBeta, converge = 0, iter = i))
     } else {
       beta <- newBeta
     }
     if (i == engine@maxit) {
-      return(list(coe = newBeta, converge = 2, ite = i))
+      return(list(coe = newBeta, converge = 2, iter = i))
     }
   }
 }
 
 rankFit.gehan.s <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1:2, ncol(DF))])
+  y <- log(DF$time)
+  init <- lsfit(xmat, y, intercept = FALSE)$coefficient
   out <- nleqslv(
-    x = engine@b0, fn = function(b) {
-      colSums(gehan_smth(xmat, log(DF$time), DF$status, DF$ssps, b, engine@n))
+    x = init, fn = function(b) {
+      colSums(gehan_smth(xmat, log(DF$time), DF$status, DF$ssps, b, engine@n)) / nrow(xmat)
     }, jac = function(b) {
       gehan_s_jaco(xmat, log(DF$time), DF$status, DF$ssps, b, engine@n)
     }, method = "Broyden", jacobian = FALSE,
@@ -96,7 +98,6 @@ rankFit.gehan.s <- function(DF, engine) {
     conv <- 1
     coe <- rep(NA, ncol(xmat))
   }
-  names(coe) <- paste0("beta", seq_len(ncol(xmat)))
   return(list(coe = coe, converge = conv, iter = out$nfcnt))
 }
 
@@ -121,7 +122,6 @@ rankFit.gehan.ns <- function(DF, engine) {
     conv <- 1
     coe <- rep(NA, ncol(xmat))
   }
-  names(coe) <- paste0("beta", seq_len(ncol(xmat)))
   return(list(coe = coe, converge = conv, iter = out$nfcnt))
 }
 

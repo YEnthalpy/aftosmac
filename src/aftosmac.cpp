@@ -124,7 +124,7 @@ arma::mat gehan_ns(arma::mat x, arma::vec y, arma::uvec d,
         nut += (x.row(i) - x.row(j)) / p[j];
       }
     }
-    out.row(i) = nut / p[i] / n / r / r;
+    out.row(i) = nut / p[i] / n / r;
   }
   return out;
 }
@@ -196,7 +196,7 @@ arma::mat gehan_ns_mtg(arma::mat x, arma::vec y, arma::vec d,
         cont_i += xsum.row(j) / csum[j] - xi;
       }
     }
-    out.row(i) = cont_i / r0;
+    out.row(i) = cont_i;
   }
   return out;
 }
@@ -222,7 +222,7 @@ arma::mat gehan_smth(const arma::mat &x, const arma::vec &y,
     arma::vec pij = p.subvec(i + 1, r - 1);
     arma::vec phij = arma::normcdf(sqrt(r) * edif / rij);
     phij.replace(arma::datum::nan, 1);
-    out.row(i) = sum(xdif.each_col() % ((phij % (d[i] + dij) - dij) / pij) / p[i], 0) / n / n / r / r;
+    out.row(i) = sum(xdif.each_col() % ((phij % (d[i] + dij) - dij) / pij) / p[i], 0) / n / n / r;
   }
   return out;
 }
@@ -277,7 +277,7 @@ arma::mat gehan_s_mtg(const arma::mat &x, const arma::vec &y,
     phij.replace(arma::datum::nan, 0);
     out2 += (x.each_row() - tmp.row(j)).each_col() % phij / p_pt[j] / r0;
   }
-  out = (out1.each_col() % (d / p)  - out2.each_col() / p) / r0 / n / n;
+  out = (out1.each_col() % (d / p)  - out2.each_col() / p) / n / n;
   return out;
 }
 

@@ -21,8 +21,8 @@ parSlp.weibull <- function(DF, engine) {
   d2.beta <- -t(xmat * exper  / DF$ssps) %*% xmat / (sigma^2)
   d2.sig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
                  * exper) / DF$ssps) / (sigma^2)
-  d2.sigbeta <- colSums((xmat * (DF$status - exper * (1 + er)))) / (sigma ^ 2)
-  cbind(c(d2.sig, d2.sigbeta), rbind(t(d2.sigbeta), d2.beta))
+  d2.sigbeta <- colSums((xmat * (DF$status - exper * (1 + er)))/ DF$ssps) / (sigma ^ 2) 
+  cbind(c(d2.sig, d2.sigbeta), rbind(t(d2.sigbeta), d2.beta)) / engine@n / nrow(xmat)
 }
 
 estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
@@ -38,7 +38,6 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
   }else if (fitMtd == "rank") {
     method <- paste("semi", fitMtd, rankWt, "s", sep = ".")
   }
-  engine <- do.call("new", list(Class = method))
   z <- matrix(rexp(engine@B * r), nrow = r, byrow = FALSE)
   g <- aftosmac.est(DF = DF, engine = engine)
   v <- var(crossprod(z, g)) / r
@@ -46,8 +45,8 @@ estSlp <- function(DF, engine, fitMtd = c("rank", "ls"),
                 ncol = p, byrow = TRUE)
   zb <- zbs %*% with(eigen(v), vectors %*% (values^(-0.5) * t(vectors)))
   # need to define b, B and ind_sub
-  beta1 <- zb / sqrt(r) + matrix(rep(engine@b, engine@B), ncol = p, byrow = TRUE)
-  beta1 <- cbind(rep(beta[1], engine@B), beta1)
+  beta1 <- zb / sqrt(r) + matrix(rep(engine@b[-1], engine@B), ncol = p, byrow = TRUE)
+  beta1 <- cbind(rep(engine@b[1], engine@B), beta1)
   response <- matrix(NA, nrow = engine@B, ncol = p)
   for (i in seq_len(engine@B)) {
     engine@b <- beta1[i, ]

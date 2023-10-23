@@ -1,6 +1,4 @@
-aftosmac.ssps <- function(DF, engine, fitMtd = c("rank", "ls"),
-                        rankWt = c("gehan"),
-                        sspType = c("uniform", "optA", "optL")) {
+aftosmac.ssps <- function(DF, engine, sspType = c("uniform", "optA", "optL")) {
   xmat <- as.matrix(DF[, c(1, 2)])
   y <- log(DF$time)
   delta <- DF$status
@@ -20,6 +18,7 @@ aftosmac.ssps <- function(DF, engine, fitMtd = c("rank", "ls"),
     engine@ind_sub <- ind_pt
     engine@b <- mle_pt$coe
     g <- aftosmac.est(DF = DF, engine = engine)
+    engine@ind_sub <- seq_len(engine@r0)
     m <- aftosmac.slope(DF = DF[ind_pt, ], engine = engine)
     # optimal ssps
     if (sspType == "optL") {

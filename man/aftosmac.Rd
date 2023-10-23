@@ -7,17 +7,14 @@
 aftosmac(
   formula,
   data,
-  r0,
-  r,
-  sspType,
-  B = 1,
-  R = 20,
-  rankWt = c("gehan"),
-  parDist = c("weibull"),
-  eqType = c("s", "ns"),
-  fitMtd = c("rank", "ls", "par"),
-  estMtd = c("cs", "ce"),
+  subsample.size,
+  sspType = c("optA", "optL", "uniform"),
+  method = c("weibull", "ls", "gehan"),
   se = c("NULL", "parTrue", "parFull"),
+  combine = c("estimator", "sample"),
+  repeated = 0,
+  R = 0,
+  constrasts = NULL,
   control = list()
 )
 }
@@ -28,27 +25,21 @@ The \code{response} is a \code{Surv} object with right censoring.}
 \item{data}{an optional data.frame in which to interpret the variables occurring
 in the \code{formula}.}
 
-\item{r0}{the pilot subsample size.}
-
-\item{r}{the second-step subsample size.}
+\item{subsample.size}{the pilot and second-subsample size}
 
 \item{sspType}{the type of optimal subsampling probabilities.}
 
-\item{B}{number of subsmaples needed to derive the final estimator}
+\item{method}{methods to fit the regression model.}
+
+\item{se}{method to calculate the standard errors.}
+
+\item{combine}{how to combine the pilot and second-step subsample.}
+
+\item{repeated}{number of subsmaples needed to derive the final estimator}
 
 \item{R}{the number of noises used in the resampling approach.}
 
-\item{rankWt}{the type of weight function when using rank-based semiparametric approach.}
-
-\item{parDist}{the error distribution when using parametric approach.}
-
-\item{eqType}{the type of estimating function when using rank-based semiparametric approach.}
-
-\item{fitMtd}{the model to derive the estimator.}
-
-\item{estMtd}{method to combine subsamples or combine estimators.}
-
-\item{se}{method to calculate the standard errors.}
+\item{constrasts}{...}
 
 \item{control}{controls maxiter and tolerance.}
 }

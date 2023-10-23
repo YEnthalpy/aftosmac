@@ -40,7 +40,7 @@ parEst.weibull <- function(DF, engine) {
   exper <- exp(er)
   d.beta <- xmat * (exper - DF$status) / DF$ssps / engine@b[1]
   d.sig <- (er * exper - DF$status * er - DF$status) / DF$ssps / engine@b[1]
-  cbind(d.sig, d.beta)
+  cbind(d.sig, d.beta) / engine@n
 }
 
 ## Generic function -- estimating functions
