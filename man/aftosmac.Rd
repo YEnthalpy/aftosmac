@@ -13,7 +13,7 @@ aftosmac(
   model = c("weibull", "ls", "gehan"),
   se = c("NULL", "parTrue", "parFull"),
   combine = c("estimator", "sample"),
-  repeated = 0,
+  repeated = 1,
   constrasts = NULL,
   control = list()
 )
