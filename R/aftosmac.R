@@ -1,3 +1,44 @@
+# get variance matrix
+vcovm <- function(DF.Samp, engine, se) {
+  if (se == "NULL") {
+    return(rep(NA, length(engine@b)))
+  }
+  r.Sec <- nrow(DF.Samp)
+  g <- aftosmac.est(DF.Samp, engine)
+  # estimate vc
+  # z <- matrix(rexp(engine@B * r.Sec), nrow = r.Sec, byrow = FALSE)
+  # vc <- var(crossprod(z, g)) / r.Sec
+  vc <- crossprod(g) / r.Sec
+  # inverse of the hessian matrix estimated by the second step subsample
+  m_inv <- solve(aftosmac.slope(DF.Samp, engine))
+  # sandwich estimator for full estimator
+  vx <- m_inv %*% vc %*% t(m_inv) / r.Sec
+  out <- vx
+  # sandwich estimator for true coe
+  if (se == "parTrue") {
+    vc_add <- crossprod(DF.Samp$ssps * g, g) / r.Sec * engine@n
+    vc_amend <- vc + (r.Sec / engine@n) * vc_add
+    vx_amend <- m_inv %*% vc_amend %*% m_inv / r.Sec
+    out <- vx_amend
+  }
+  return(out)
+}
+
+# get intercept for semi-parametric models
+intcp <- function(DF.Samp, engine) {
+  xmat.Samp <- as.matrix(DF.Samp[, -c(1, 2, ncol(DF.Samp))])
+  delta.Samp <- DF.Samp[, 2]
+  y.Samp <- log(DF.Samp[, 1])
+  coe.icpt <- max(eres(
+    (y.Samp - xmat.Samp %*% engine@b), delta.Samp, DF.Samp[, ncol(DF.Samp)], 
+    seq_len(nrow(DF.Samp))
+  )[[2]])
+  out <- c(coe.icpt, engine@b)
+  names(out) <- c("Intercept", colnames(DF.Samp)[-c(1, 2, ncol(DF.Samp))])
+  return(out)
+}
+
+
 #' Optimal Subsampling Method for Accelerated Failure Time Models.
 #'
 #' Estimate the full data statistical inferences based on a subsample. The
@@ -102,11 +143,14 @@ aftosmac <- function(formula, data, subsample.size,
   
   # sample with replacement
   indSec <- sample(engine@n, r, prob = optSSPs$ssp, replace = TRUE)
+  
+  # combined subsample
+  indSamp <- c(indSec, indPt)
+  sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
+  DF.Samp <- DF[indSamp, ]
+  DF.Samp$ssps <- sspSamp
+  
   if (combine == "sample") {
-    indSamp <- c(indSec, indPt)
-    sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
-    DF.Samp <- DF[indSamp, ]
-    DF.Samp$ssps <- sspSamp
     est.out <- aftosmac.fit(DF.Samp, engine)
     coe.out <- est.out$coe
     itr.out <- est.out$iter
@@ -124,58 +168,47 @@ aftosmac <- function(formula, data, subsample.size,
     engine@b <- est.snd$coe
     engine@ind_sub <- seq_len(r)
     M.snd <- r * aftosmac.slope(DF.snd, engine)
+    if (method == "semi.ls") {
+      engine@b <- est.snd$coe[-1]
+      optSSPs$coe.pt <- optSSPs$coe.pt[-1]
+    }
     coe.out <- drop(solve(r0 * optSSPs$M.pt + M.snd) %*%
-                     (r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% est.snd$coe))
+                     (r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% engine@b))
+    if (method == "semi.ls") {
+      coe.out <- intcp(DF.Samp[, -which(colnames(DF.Samp) == "(Intercept)")], engine)
+    }
     itr.out <- est.snd$iter
   }
   
-  std <- rep(NA, length(coe.out))
-  if (se != "NULL") {
-    indSamp <- c(indSec, indPt)
-    sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
-    engine@b <- coe.out
-    engine@ind_sub <- seq_len(r + r0)
-    DF.Samp <- DF[indSamp, ]
-    DF.Samp$ssps <- sspSamp
-    g <- aftosmac.est(DF.Samp, engine)
-    # estimate vc
-    # z <- matrix(rexp(engine@B * (r + r0)), nrow = (r + r0), byrow = FALSE)
-    # vc <- var(crossprod(z, g)) / (r + r0)
-    vc <- crossprod(g) / (r + r0)
-    # inverse of the hessian matrix estimated by the second step subsample
-    m_inv <- solve(aftosmac.slope(DF.Samp, engine))
-    # sandwich estimator for full estimator
-    vx <- m_inv %*% vc %*% t(m_inv) / (r + r0)
-    std <- c(sqrt(diag(vx)))
-    # sandwich estimator for true coe
-    if (se == "parTrue") {
-      vc_add <- crossprod(sspSamp * g, g) / (r + r0) * engine@n
-      vc_amend <- vc + ((r + r0) / engine@n) * vc_add
-      vx_amend <- m_inv %*% vc_amend %*% m_inv / (r + r0)
-      std <- c(sqrt(diag(vx_amend)))
-    }
-  }
+  # update engine
+  engine@b <- coe.out
+  engine@ind_sub <- seq_len(r + r0)
   
+  # get variance matrix
+  if (se != "NULL") {
+    covmat <- vcovm(DF.Samp, engine, se)
+  }
+
   if (method == "par.weibull") {
-    names(coe.out) <- names(std) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
+    names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
+    covmat <- covmat[-2, -2]
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-2]
   }else if (method == "semi.ls") {
-    names(coe.out) <- colnames(DF)[-c(1, 2, ncol(DF))]
-    names(std) <- names(coe.out)[-1]
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
   }else if (method == "semi.rank.gehan.s") {
     # add intercept term for the rank based estimator
-    indSamp <- c(indSec, indPt)
-    sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
-    xmat.Samp <- as.matrix(DF[indSamp, -c(1:2, ncol(DF))])
-    delta.Samp <- DF[indSamp, 2]
-    y.Samp <- log(DF[indSamp, 1])
-    coe.icpt <- max(eres(
-      (y.Samp - xmat.Samp %*% coe.out), delta.Samp, sspSamp, (r + r0)
-    )[[2]])
-    coe.out <- c(coe.icpt, coe.out)
-    names(coe.out) <- c("Intercept", colnames(DF)[-c(1, 2, ncol(DF))])
-    names(std) <- names(coe.out)[-1]
+    coe.out <- intcp(DF.Samp, engine)
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
   }
-  return(list(coe = coe.out, std = std, converge = 0, iter = itr.out))
+  out <- list(call = scall, vari.name = names(coe.out),
+              coefficients = coe.out, covmat = covmat, convergence = 0,
+              var.meth = se, ssp.type = sspType, model = method,
+              combine = combine, repeated = repeated, R = R,
+              ind.ptsample = indPt, ind.sndsample = indSec)
+  out$x <- DF[-c(1, 2, ncol(DF))]
+  out$y <- DF[, c(1, 2)]
+  class(out) <- "aftosmac"
+  return(out)
 }
 
 
