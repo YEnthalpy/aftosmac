@@ -1,7 +1,7 @@
 # get variance matrix
 vcovm <- function(DF.Samp, engine, se) {
   if (se == "NULL") {
-    return(rep(NA, length(engine@b)))
+    return(NA)
   }
   r.Sec <- nrow(DF.Samp)
   g <- aftosmac.est(DF.Samp, engine)
@@ -30,7 +30,7 @@ intcp <- function(DF.Samp, engine) {
   delta.Samp <- DF.Samp[, 2]
   y.Samp <- log(DF.Samp[, 1])
   coe.icpt <- max(eres(
-    (y.Samp - xmat.Samp %*% engine@b), delta.Samp, DF.Samp[, ncol(DF.Samp)], 
+    (y.Samp - xmat.Samp %*% engine@b), delta.Samp, DF.Samp[, ncol(DF.Samp)],
     seq_len(nrow(DF.Samp))
   )[[2]])
   out <- c(coe.icpt, engine@b)
@@ -73,7 +73,7 @@ intcp <- function(DF.Samp, engine) {
 #' @keywords aftosmac
 #'
 
-aftosmac <- function(formula, data, subsample.size, 
+aftosmac <- function(formula, data, subsample.size,
                      sspType = c("optA", "optL", "uniform"),
                      method = c("weibull", "ls", "gehan"),
                      se = c("NULL", "parTrue", "parFull"),
@@ -140,16 +140,16 @@ aftosmac <- function(formula, data, subsample.size,
   }
   DF$ssps <- optSSPs$ssp
   indPt <- optSSPs$ind.pt
-  
+
   # sample with replacement
   indSec <- sample(engine@n, r, prob = optSSPs$ssp, replace = TRUE)
-  
+
   # combined subsample
   indSamp <- c(indSec, indPt)
   sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
   DF.Samp <- DF[indSamp, ]
   DF.Samp$ssps <- sspSamp
-  
+
   if (combine == "sample") {
     est.out <- aftosmac.fit(DF.Samp, engine)
     coe.out <- est.out$coe
@@ -179,27 +179,32 @@ aftosmac <- function(formula, data, subsample.size,
     }
     itr.out <- est.snd$iter
   }
-  
+
   # update engine
   engine@b <- coe.out
   engine@ind_sub <- seq_len(r + r0)
-  
+
   # get variance matrix
-  if (se != "NULL") {
-    covmat <- vcovm(DF.Samp, engine, se)
-  }
+  covmat <- vcovm(DF.Samp, engine, se)
 
   if (method == "par.weibull") {
     names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
     covmat <- covmat[-2, -2]
     colnames(covmat) <- rownames(covmat) <- names(coe.out)[-2]
   }else if (method == "semi.ls") {
-    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
+    names(coe.out) <- colnames(DF)[-c(1, 2, ncol(DF))]
+    if (!is.na(covmat[1])){
+      colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
+    }
   }else if (method == "semi.rank.gehan.s") {
     # add intercept term for the rank based estimator
     coe.out <- intcp(DF.Samp, engine)
-    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
+    names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
+    if (!is.na(covmat[1])){
+      colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
+    }
   }
+
   out <- list(call = scall, vari.name = names(coe.out),
               coefficients = coe.out, covmat = covmat, convergence = 0,
               var.meth = se, ssp.type = sspType, model = method,

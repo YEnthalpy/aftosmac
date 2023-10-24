@@ -21,9 +21,6 @@ residuals.aftosmac <- function(object, ...){
   }
   if (!is.aftosmac(z)) stop("Most be aftosmac class")
   ans <- z["call"]
-  if (!"(Intercept)" %in% colnames(z$x)){
-    z$x <- as.matrix(cbind(1, z$x))
-  }
   out <- log(z$y[, 1]) - as.matrix(z$x) %*% z$coefficients
   out
 }
