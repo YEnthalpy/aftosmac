@@ -7,13 +7,13 @@
 aftosmac(
   formula,
   data,
-  subsample.size,
+  size.pilot,
+  size.subsample,
   sspType = c("optA", "optL", "uniform"),
-  method = c("weibull", "ls", "gehan"),
+  model = c("weibull", "ls", "gehan"),
   se = c("NULL", "parTrue", "parFull"),
   combine = c("estimator", "sample"),
   repeated = 0,
-  R = 0,
   constrasts = NULL,
   control = list()
 )
@@ -25,19 +25,19 @@ The \code{response} is a \code{Surv} object with right censoring.}
 \item{data}{an optional data.frame in which to interpret the variables occurring
 in the \code{formula}.}
 
-\item{subsample.size}{the pilot and second-subsample size}
+\item{size.pilot}{the pilot subsample size}
+
+\item{size.subsample}{the second step subsample size}
 
 \item{sspType}{the type of optimal subsampling probabilities.}
 
-\item{method}{methods to fit the regression model.}
+\item{model}{methods to fit the regression model.}
 
 \item{se}{method to calculate the standard errors.}
 
 \item{combine}{how to combine the pilot and second-step subsample.}
 
 \item{repeated}{number of subsmaples needed to derive the final estimator}
-
-\item{R}{the number of noises used in the resampling approach.}
 
 \item{constrasts}{...}
 

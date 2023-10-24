@@ -33,7 +33,8 @@ summary.aftosmac <- function(object,...){
                 z.value = round(z.val.smry, 3),
                 p.value = round(2 * pnorm(-abs(z.val.smry)), 3))
 
-  res <- list(call = z$call, coefficients = temp, model = z$model)
+  res <- list(call = z$call, coefficients = temp, model = z$model,
+              covg = z$convergence)
   class(res) <- "summary.aftosmac"
   return(res)
 }
@@ -45,5 +46,9 @@ print.summary.aftosmac <- function(x, ...){
   cat("\n")
   cat(as.character(paste0("model: ", x$model)))
   cat("\n")
-  printCoefmat(as.data.frame(x$coefficients), P.values = TRUE, has.Pvalue = TRUE)
+  if ("1" %in% names(x$covg) | "2" %in% names(x$covg) | !0 %in% x$covg) {
+    cat("Failed to get a converging result.")
+  }else{
+    printCoefmat(as.data.frame(x$coefficients), P.values = TRUE, has.Pvalue = TRUE)
+  }
 }

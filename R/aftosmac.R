@@ -38,6 +38,56 @@ intcp <- function(DF.Samp, engine) {
   return(out)
 }
 
+# Function to get one subsample estimator
+onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
+  DF$ssps <- optSSPs$ssp
+  indPt <- optSSPs$ind.pt
+  # sample with replacement
+  indSec <- sample(engine@n, engine@r, prob = optSSPs$ssp, replace = TRUE)
+
+  # combined subsample
+  indSamp <- c(indSec, indPt)
+  sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, engine@r0))
+  DF.Samp <- DF[indSamp, ]
+  DF.Samp$ssps <- sspSamp
+
+  if (combine == "sample") {
+    est.out <- aftosmac.fit(DF.Samp, engine)
+    covg.out <- est.out$converge
+    if (covg.out != 0) {
+      return(list(coe = NA, itr = NA,
+                  covg = covg.out, DF.Samp = NA))
+    }
+    coe.out <- est.out$coe
+    itr.out <- est.out$iter
+  }else if (combine == "estimator") {
+    DF.snd <- DF[indSec, ]
+    est.snd <- aftosmac.fit(DF.snd, engine)
+    covg.out <- est.snd$converge
+    if (covg.out != 0) {
+      return(list(coe = NA, itr = NA,
+                  covg = covg.out, DF.Samp = NA))
+    }
+    engine@b <- est.snd$coe
+    engine@ind_sub <- seq_len(engine@r)
+    M.snd <- engine@r * aftosmac.slope(DF.snd, engine)
+    if (method == "semi.ls") {
+      engine@b <- est.snd$coe[-1]
+      optSSPs$coe.pt <- optSSPs$coe.pt[-1]
+    }
+    coe.out <- drop(solve(engine@r0 * optSSPs$M.pt + M.snd) %*%
+                      (engine@r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% engine@b))
+    if (method == "semi.ls") {
+      coe.out <- intcp(DF.Samp[, -which(colnames(DF.Samp) == "(Intercept)")], engine)
+    }
+    itr.out <- est.snd$iter
+  }
+  if (repeated != 1) {
+    DF.Samp <- NA
+  }
+  return(list(coe = coe.out, itr = itr.out, covg = covg.out, DF.Samp = DF.Samp))
+}
+
 
 #' Optimal Subsampling Method for Accelerated Failure Time Models.
 #'
@@ -51,12 +101,12 @@ intcp <- function(DF.Samp, engine) {
 #' @param data an optional data.frame in which to interpret the variables occurring
 #'     in the \code{formula}.
 #' @param control controls maxiter and tolerance.
-#' @param subsample.size the pilot and second-subsample size
+#' @param size.pilot the pilot subsample size
+#' @param size.subsample the second step subsample size
 #' @param sspType the type of optimal subsampling probabilities.
 #' @param repeated number of subsmaples needed to derive the final estimator
-#' @param R the number of noises used in the resampling approach.
 #' @param se method to calculate the standard errors.
-#' @param method methods to fit the regression model.
+#' @param model methods to fit the regression model.
 #' @param combine how to combine the pilot and second-step subsample.
 #' @param constrasts ...
 #'
@@ -73,15 +123,15 @@ intcp <- function(DF.Samp, engine) {
 #' @keywords aftosmac
 #'
 
-aftosmac <- function(formula, data, subsample.size,
+aftosmac <- function(formula, data, size.pilot, size.subsample,
                      sspType = c("optA", "optL", "uniform"),
-                     method = c("weibull", "ls", "gehan"),
+                     model = c("weibull", "ls", "gehan"),
                      se = c("NULL", "parTrue", "parFull"),
                      combine = c("estimator", "sample"),
-                     repeated = 0, R = 0,
+                     repeated = 1,
                      constrasts = NULL,
                      control = list()) {
-  method <- match.arg(method)
+  method <- match.arg(model)
   se <- match.arg(se)
   sspType <- match.arg(sspType)
   scall <- match.call() # call function, including all inputs
@@ -97,16 +147,14 @@ aftosmac <- function(formula, data, subsample.size,
     stop("aftosmac only supports Surv object with right censoring.", call. = FALSE)
   formula[[2]] <- NULL
   DF <- as.data.frame(cbind(obj, model.matrix(mterms, m))) # add covariates
-  r0 <- subsample.size[1]
-  r <- subsample.size[2]
-  if (method == "ls") {
+  if (model == "ls") {
     method <- "semi.ls"
-  }else if (method == "gehan") {
+  }else if (model == "gehan") {
     # delete intercept for rank-based approach
     DF <- DF[,-which(colnames(DF) == "(Intercept)")]
     method <- "semi.rank.gehan.s"
     combine <- "estimator"
-  }else if (method == "weibull") {
+  }else if (model == "weibull") {
     method <- "par.weibull"
   }
   # create engine
@@ -131,61 +179,52 @@ aftosmac <- function(formula, data, subsample.size,
   }
 
   # get optimal SSPs
-  engine@r0 <- r0
+  engine@r0 <- size.pilot
+  engine@r <- size.subsample
   engine@n <- nrow(DF)
   optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
   if (optSSPs$converge != 0) {
     stop(paste0("Fail to get a converging pilot estimator. The converging code is ",
                 optSSPs$converge))
   }
-  DF$ssps <- optSSPs$ssp
-  indPt <- optSSPs$ind.pt
 
-  # sample with replacement
-  indSec <- sample(engine@n, r, prob = optSSPs$ssp, replace = TRUE)
+  # get subsample estimator
+  subest <- replicate(repeated,
+                      list(onefit(DF, engine, optSSPs, combine, method, repeated)))
 
-  # combined subsample
-  indSamp <- c(indSec, indPt)
-  sspSamp <- c(optSSPs$ssp[indSec], rep(1/engine@n, r0))
-  DF.Samp <- DF[indSamp, ]
-  DF.Samp$ssps <- sspSamp
-
-  if (combine == "sample") {
-    est.out <- aftosmac.fit(DF.Samp, engine)
-    coe.out <- est.out$coe
-    itr.out <- est.out$iter
-    if (est.out$converge != 0) {
-      stop(paste0("Fail to get a converging second-step estimator.
-                  The converging code is ", est.out$converge))
+  engine@ind_sub <- seq_len(engine@r + engine@r0)
+  if (repeated == 0) {
+    covg.out <- subset[[1]]$covg
+    if (covg.out != 0) {
+      out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
+                  coefficients = NA, covmat = NA, convergence = covg.out,
+                  var.meth = se, ssp.type = sspType, model = model,
+                  combine = combine, repeated = repeated)
+      out$x <- DF[-c(1, 2, ncol(DF))]
+      out$y <- DF[, c(1, 2)]
+      class(out) <- "aftosmac"
+      return(out)
     }
-  }else if (combine == "estimator") {
-    DF.snd <- DF[indSec, ]
-    est.snd <- aftosmac.fit(DF.snd, engine)
-    if (est.snd$converge != 0) {
-      stop(paste0("Fail to get a converging subsample estimator.
-                  The converging code is ", est.snd$converge))
+    coe.out <- subest[[1]]$coe
+    engine@b <- coe.out
+    covmat <- vcovm(DF.Samp, engine, se)
+  }else {
+    covg.out <- sapply(subest, function(t){t[["covg"]]})
+    if (sum(covg.out) != 0) {
+      out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
+                  coefficients = NA, covmat = NA, convergence = table(covg.out),
+                  var.meth = se, ssp.type = sspType, model = model,
+                  combine = combine, repeated = repeated)
+      out$x <- DF[-c(1, 2, ncol(DF))]
+      out$y <- DF[, c(1, 2)]
+      class(out) <- "aftosmac"
+      return(out)
     }
-    engine@b <- est.snd$coe
-    engine@ind_sub <- seq_len(r)
-    M.snd <- r * aftosmac.slope(DF.snd, engine)
-    if (method == "semi.ls") {
-      engine@b <- est.snd$coe[-1]
-      optSSPs$coe.pt <- optSSPs$coe.pt[-1]
-    }
-    coe.out <- drop(solve(r0 * optSSPs$M.pt + M.snd) %*%
-                     (r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% engine@b))
-    if (method == "semi.ls") {
-      coe.out <- intcp(DF.Samp[, -which(colnames(DF.Samp) == "(Intercept)")], engine)
-    }
-    itr.out <- est.snd$iter
+    coe.mat <- sapply(subest, function(t){t[["coe"]]})
+    coe.out <- rowMeans(coe.mat)
+    covmat <- var(t(coe.mat[-1, ])) / repeated
+    itr.out <- mean(sapply(subest, function(t){t[["itr"]]}))
   }
-
-  # update engine
-  engine@b <- coe.out
-  engine@ind_sub <- seq_len(r + r0)
-
-  # get variance matrix
-  covmat <- vcovm(DF.Samp, engine, se)
 
   if (method == "par.weibull") {
     names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
@@ -206,10 +245,9 @@ aftosmac <- function(formula, data, subsample.size,
   }
 
   out <- list(call = scall, vari.name = names(coe.out),
-              coefficients = coe.out, covmat = covmat, convergence = 0,
+              coefficients = coe.out, covmat = covmat, convergence = covg.out,
               var.meth = se, ssp.type = sspType, model = method,
-              combine = combine, repeated = repeated, R = R,
-              ind.ptsample = indPt, ind.sndsample = indSec)
+              combine = combine, repeated = repeated)
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
   class(out) <- "aftosmac"

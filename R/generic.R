@@ -2,17 +2,25 @@
 #' @noRd
 coef.aftosmac <- function(object, ...){
   z <- object
+  if ("1" %in% names(z$convergence) | "2" %in% names(z$convergence) |
+      ! 0 %in% z$convergence) {
+    stop("Failed to get a converging result.")
+  }
   if (!is.aftosmac(z)) stop("Most be aftosmac class")
   ans <- z["call"]
   out <- z$coefficients
   names(out) <- z$vari.name
-  out
+  return(out)
 }
 
 #' @export
 #' @noRd
 residuals.aftosmac <- function(object, ...){
   z <- object
+  if ("1" %in% names(z$convergence) | "2" %in% names(z$convergence) |
+      ! 0 %in% z$convergence) {
+    stop("Failed to get a converging result.")
+  }
   if (!"(Intercept)" %in% colnames(z$x)){
     z$x <- as.matrix(cbind(1, z$x))
   }
@@ -29,6 +37,10 @@ residuals.aftosmac <- function(object, ...){
 #' @noRd
 vcov.aftosmac <- function(object, ...){
   z <- object
+  if ("1" %in% names(z$convergence) | "2" %in% names(z$convergence) |
+      ! 0 %in% z$convergence) {
+    stop("Failed to get a converging result.")
+  }
   if (!is.aftosmac(z)) stop("Most be aftosmac class")
   ans <- z["call"]
   out <- z$covmat
@@ -40,6 +52,10 @@ vcov.aftosmac <- function(object, ...){
 #' @noRd
 predict.aftosmac <- function(object, newdata = NULL, se.fit = FALSE, ...){
   z <- object
+  if ("1" %in% names(z$convergence) | "2" %in% names(z$convergence) |
+      ! 0 %in% z$convergence) {
+    stop("Failed to get a converging result.")
+  }
   z$x <- as.matrix(z$x)
   out <- NULL
   if (!"(Intercept)" %in% colnames(z$x)){
