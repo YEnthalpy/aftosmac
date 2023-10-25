@@ -10,6 +10,6 @@ debug(aftosmac)
 ## Fit the semi-prametric AFT model based on the rank-based approach
 fit <- aftosmac(Surv(y, delta) ~ Age + Male + Nonwhite + Year, 
                 size.pilot = 500, size.subsample = 2000,
-                sspType = "optA", model = "weibull", se = "parFull",
+                sspType = "optA", model = "gehan", se = "parTrue",
                 combine = "estimator", data = dat)
 summary(fit)
