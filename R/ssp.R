@@ -5,13 +5,13 @@ aftosmac.ssps <- function(DF, engine, sspType = c("uniform", "optA", "optL")) {
   DF$ssps <- rep(1/engine@n, engine@n)
   if (sspType == "uniform") {
     return(list(ssp = rep(1/engine@n, engine@n),
-                ind_pt = sample(engine@n, engine@r0, TRUE),
+                ind.pt = sample(engine@n, engine@r0, TRUE),
                 converge = 0))
   }else {
     ind_pt <- sample(engine@n, engine@r0, TRUE)
     mle_pt <- aftosmac.fit(DF = DF[ind_pt, ], engine = engine)
     if (mle_pt$converge != 0) {
-      return(list(bt_pt = NA, ssp = NA, ind.pt = NA,
+      return(list(coe.pt = NA, ssp = NA, ind.pt = NA,
                   converge = mle_pt$converge))
     }
     # contribution of each observation to the estimating function

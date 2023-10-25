@@ -34,13 +34,12 @@ intcp <- function(DF.Samp, engine) {
     seq_len(nrow(DF.Samp))
   )[[2]])
   out <- c(coe.icpt, engine@b)
-  names(out) <- c("Intercept", colnames(DF.Samp)[-c(1, 2, ncol(DF.Samp))])
+  names(out) <- c("(Intercept)", colnames(DF.Samp)[-c(1, 2, ncol(DF.Samp))])
   return(out)
 }
 
 # Function to get one subsample estimator
 onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
-  DF$ssps <- optSSPs$ssp
   indPt <- optSSPs$ind.pt
   # sample with replacement
   indSec <- sample(engine@n, engine@r, prob = optSSPs$ssp, replace = TRUE)
@@ -78,9 +77,14 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
     coe.out <- drop(solve(engine@r0 * optSSPs$M.pt + M.snd) %*%
                       (engine@r0 * optSSPs$M.pt %*% optSSPs$coe.pt + M.snd %*% engine@b))
     if (method == "semi.ls") {
+      engine@b <- coe.out
       coe.out <- intcp(DF.Samp[, -which(colnames(DF.Samp) == "(Intercept)")], engine)
     }
     itr.out <- est.snd$iter
+  }
+  if (method == "semi.rank.gehan.s") {
+    engine@b <- coe.out
+    coe.out <- intcp(DF.Samp, engine)
   }
   if (repeated != 1) {
     DF.Samp <- NA
@@ -91,35 +95,132 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 
 #' Optimal Subsampling Method for Accelerated Failure Time Models.
 #'
-#' Estimate the full data statistical inferences based on a subsample. The
-#' subsample is derived by sampling with probabilities. The sampling probabilities
-#' is defined by the A-optimality and L-optimality from optimal design of
-#' experiments.
+#' Fit a accelerated failure time (AFT) model based on a small subsample. 
+#' The subsample is chosen by sampling with resampling. The subsampling probabilities (SSPs)
+#' are derived by the A-optimal and L-optimal criteria from the optimal design of
+#' experiment. Three types of models are supported, the Weibull parametric AFT model,
+#' the rank-based semi-parametric AFT model and the least-squares based semi-parametric
+#' AFT model with the Gehan's weight. 
+#' 
+#' The estimating equation is solved by
+#' a block gradient decent method for the Weibull AFT model and by an iterative approach 
+#' for the least-squares based semi-prarmetric AFT model. 
+#' For the rank-based semi-parametric AFT model, the non-smooth estimating equation
+#' is smoothed by an induced smooth procedure which is solved the 
+#' by the Quasi Newton's method implemented as \code{nleqslv} in the package \pkg{nleqslv}.
+#' 
+#' When \code{repeated = 1}, the variance matrix is estimated by a sandwich form
+#' \deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of 
+#' the estimating function and \eqn{A} is the slope matrix. The sandwich estimator
+#' estimates the variance matrix well for the Weibull parametric AFT model and the rank-based
+#' semi-prarmetric AFT model. For the least-squares based semi-prarmetric AFT 
+#' model whose slope matrix
+#' is estimated by a resampling method. And the corresponding 
+#' sandwich estimator will overestimate the variance when the censoring
+#' rate is high censoring rate. We fix this specific problem for the least-squares based approach
+#' by selecting more than one subsample (\code{repeated > 1}) to estimate the variance matrix
+#' directly by multiple subsample estimators.
+#' The variance matrix with respect to the full data estimator
+#' is calculated used these estimators instead of using the sandwich form.
+#' Moreover, when \code{se = "parTrue"}, we estimate the
+#' variance matrix with respect to the true regression coefficient and when
+#' \code{se = "parFull"}, the variance matrix with respect to the full data estimator
+#' is evaluated. 
+#' 
+#' The optimal SSPs are estimated by a pilot estimator using a small pilot subsample.
+#' The subsample estimator is derived by the subsample chosed based on the estimated
+#' optimal SSPs. To enhance the estimation accuracy, the pilot estimator and the subsample
+#' estimator need to be combined. We provided two methods for combination. When
+#' \code{combine = "sample"}, the pilot sample and the subsample sample are combined to
+#' derived the final estimator. When \code{combine = "estimator"}, the pilot estimator
+#' and the subsample estimator is combined to derived the final estimator. The second
+#' method is less time-consuming and is always used in the divide-and-conquer approach.
+#' 
+#' 
 #'
 #' @param formula  a formula expression, of the form \code{response ~ predictors}.
 #'     The \code{response} is a \code{Surv} object with right censoring.
-#' @param data an optional data.frame in which to interpret the variables occurring
+#' @param data an data.frame in which to interpret the variables occurring
 #'     in the \code{formula}.
-#' @param control controls maxiter and tolerance.
+#' @param contrasts an optional list.
 #' @param size.pilot the pilot subsample size
-#' @param size.subsample the second step subsample size
-#' @param sspType the type of optimal subsampling probabilities.
-#' @param repeated number of subsmaples needed to derive the final estimator
-#' @param se method to calculate the standard errors.
-#' @param model methods to fit the regression model.
-#' @param combine how to combine the pilot and second-step subsample.
-#' @param constrasts ...
-#'
-#' @return The function return a list containing at least the following components:
+#' @param size.subsample the subsample size which is always much large than 
+#'     the pilot subsample size
+#' @param sspType the type of subsampling probabilities (SSPs). Three types of
+#'     SSPs are provided:
 #' \describe{
-#'   \item{coe}{a vector of point estimates}
-#'   \item{std}{a vector of estimated standard errors}
-#'   \item{converge}{indicator of convergence}
-#'   \item{iter}{iteration needed to get the converging result}
+#'   \item{\code{uniform}}{the uniform SSPs.}
+#'   \item{\code{optA}}{the A-optimal SSPs, always yields the least mean square errors.}
+#'   \item{\code{optL}}{the L-optimal SSPs which is less time-consuming than the A-optimal SSPs.}
+#' }
+#' @param model regression model to fit the data:
+#' \describe{
+#'   \item{\code{weibull}}{the Weibull parametric AFT model.}
+#'   \item{\code{ls}}{the least-square based semi-parametric AFT model.}
+#'   \item{\code{rank}}{the rank based semi-parametric AFT model which requires much less subsample
+#'                       size to get a converging results than the least-squares approach.}
+#' }
+#' @param se types of variance matrix to estimate:
+#' \describe{
+#'   \item{\code{parFull}}{estimate the variance matrix with respect to the full dample estimator.}
+#'   \item{\code{parTrue}}{estimate the variance matrix with respect to the true coefficients.}
+#' }
+#' @param combine methods to combine the results by the pilot sample and the subsample:
+#' \describe{
+#'   \item{\code{sample}}{combine the pilot sample and the subsample to derive the 
+#'                         final estimator by the combined subsample.}
+#'   \item{\code{estimator}}{combine the pilot estimator and the subsample estimator}
+#' }
+#' @param repeated number of subsmaples used to derive the final estimator. The
+#'     default is set to be \code{repeated = 1}. When \code{repeated > 1}, the
+#'     variance matrix is not estimated by the sandwich estimator.
+#'     User is suggested to use multiple subsamples (\code{repeated > 1}) only 
+#'     for the least-squares based semi-prarmetric AFT model whose slope matrix
+#'     is estimated by a resampling method. And the corresponding 
+#'     sandwich estimator will overestimate the variance when the censoring
+#'     rate is high censoring rate. Moreover, when \code{repeated > 1}, only the
+#'     variance matrix with respect to the full sample estimator can be estimated.
+#'     Moreover, \code{repeated} should be larger than the number of covariates \code{p}.
+#' @param control controls equation solver, maxiter, tolerance and 
+#'     resampling variance estimation.
 
+
+#' @export
+#'
+#' @return \code{aftosmac} returns an object of class "\code{aftosmac}" representing the fit.
+#' An object of class "\code{aftosmac}" is a list containing at least the following components:
+#' \describe{
+#'   \item{coefficients}{A vector of beta estimates}
+#'   \item{covmat}{A matrix of covariance estimates}
+#'   \item{convergence}{An integer code indicating type of convergence. If \code{repeated > 1},
+#'        this object will be a frequency table of all possible convergences types.}
+#'   \describe{
+#'     \item{0}{indicates successful convergence.}
+#'     \item{1}{indicates that the iteration limit \code{maxit} has been reached.}
+#'     \item{2}{indicates failure due to stagnation.}
+#'   }
 #' }
 #'
+#' @references Yang, Z., Wang, H., Yan, J. (2023) Subsampling Approach for Least Squares
+#' Fitting of Semi-parametric Accelerated Failure Time Models to Massive
+#' Survival Data.
+#' \emph{Research Square preprint}, https://www.researchsquare.com/article/rs-2866415/v1.
+#' @references Yang Z., Wang, H., Yan, J. (2022) Optimal Subsampling for
+#' Parametric Accelerated Failure Time Models with Massive
+#' Survival Data.  2022; 27): 5421–5431.
+#' \emph{Statistics in Medicine}, \bold{41}(27): 5421–5431.
+#' @references Zeng, D. and Lin, D. Y. (2008)
+#' Efficient Resampling Methods for Nonsmooth Estimating Functions.
+#' \emph{Biostatistics}, \bold{9}, 355--363
+#' @references Chiou, S., Kang, S. and Yan, J. (2014)
+#' Fast Accelerated Failure Time Modeling for Case-Cohort Data. \emph{Statistics and Computing},
+#' \bold{24}(4): 559--568.
+#' @references Johnson, L. M. and Strawderman, R. L. (2009)
+#' Induced Smoothing for the Semiparametric Accelerated Failure Time Model:
+#' Asymptotic and Extensions to Clustered Data. \emph{Biometrika}, \bold{96}, 577 -- 590.
+#'
 #' @export
+#' @example inst/examples/ex_aftosmac.R
 #' @keywords aftosmac
 #'
 
@@ -147,13 +248,15 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
     stop("aftosmac only supports Surv object with right censoring.", call. = FALSE)
   formula[[2]] <- NULL
   DF <- as.data.frame(cbind(obj, model.matrix(mterms, m))) # add covariates
+  if (sspType == "uniform") {
+    combine <- "sample"
+  }
   if (model == "ls") {
     method <- "semi.ls"
   }else if (model == "gehan") {
     # delete intercept for rank-based approach
     DF <- DF[,-which(colnames(DF) == "(Intercept)")]
     method <- "semi.rank.gehan.s"
-    combine <- "estimator"
   }else if (model == "weibull") {
     method <- "par.weibull"
   }
@@ -183,6 +286,7 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
   engine@r <- size.subsample
   engine@n <- nrow(DF)
   optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
+  DF$ssps <- optSSPs$ssp
   if (optSSPs$converge != 0) {
     stop(paste0("Fail to get a converging pilot estimator. The converging code is ",
                 optSSPs$converge))
@@ -193,8 +297,8 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
                       list(onefit(DF, engine, optSSPs, combine, method, repeated)))
 
   engine@ind_sub <- seq_len(engine@r + engine@r0)
-  if (repeated == 0) {
-    covg.out <- subset[[1]]$covg
+  if (repeated == 1) {
+    covg.out <- subest[[1]]$covg
     if (covg.out != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = covg.out,
@@ -202,11 +306,17 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
                   combine = combine, repeated = repeated)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
+      
       class(out) <- "aftosmac"
       return(out)
     }
     coe.out <- subest[[1]]$coe
-    engine@b <- coe.out
+    DF.Samp <- subest[[1]]$DF.Samp
+    if (method == "semi.rank.gehan.s") {
+      engine@b <- coe.out[-1]
+    }else {
+      engine@b <- coe.out
+    }
     covmat <- vcovm(DF.Samp, engine, se)
   }else {
     covg.out <- sapply(subest, function(t){t[["covg"]]})
@@ -237,7 +347,6 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
     }
   }else if (method == "semi.rank.gehan.s") {
     # add intercept term for the rank based estimator
-    coe.out <- intcp(DF.Samp, engine)
     names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
     if (!is.na(covmat[1])){
       colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]

@@ -22,40 +22,155 @@ aftosmac(
 \item{formula}{a formula expression, of the form \code{response ~ predictors}.
 The \code{response} is a \code{Surv} object with right censoring.}
 
-\item{data}{an optional data.frame in which to interpret the variables occurring
+\item{data}{an data.frame in which to interpret the variables occurring
 in the \code{formula}.}
 
 \item{size.pilot}{the pilot subsample size}
 
-\item{size.subsample}{the second step subsample size}
+\item{size.subsample}{the subsample size which is always much large than 
+the pilot subsample size}
 
-\item{sspType}{the type of optimal subsampling probabilities.}
+\item{sspType}{the type of subsampling probabilities (SSPs). Three types of
+    SSPs are provided:
+\describe{
+  \item{\code{uniform}}{the uniform SSPs.}
+  \item{\code{optA}}{the A-optimal SSPs, always yields the least mean square errors.}
+  \item{\code{optL}}{the L-optimal SSPs which is less time-consuming than the A-optimal SSPs.}
+}}
 
-\item{model}{methods to fit the regression model.}
+\item{model}{regression model to fit the data:
+\describe{
+  \item{\code{weibull}}{the Weibull parametric AFT model.}
+  \item{\code{ls}}{the least-square based semi-parametric AFT model.}
+  \item{\code{rank}}{the rank based semi-parametric AFT model which requires much less subsample
+                      size to get a converging results than the least-squares approach.}
+}}
 
-\item{se}{method to calculate the standard errors.}
+\item{se}{types of variance matrix to estimate:
+\describe{
+  \item{\code{parFull}}{estimate the variance matrix with respect to the full dample estimator.}
+  \item{\code{parTrue}}{estimate the variance matrix with respect to the true coefficients.}
+}}
 
-\item{combine}{how to combine the pilot and second-step subsample.}
+\item{combine}{methods to combine the results by the pilot sample and the subsample:
+\describe{
+  \item{\code{sample}}{combine the pilot sample and the subsample to derive the 
+                        final estimator by the combined subsample.}
+  \item{\code{estimator}}{combine the pilot estimator and the subsample estimator}
+}}
 
-\item{repeated}{number of subsmaples needed to derive the final estimator}
+\item{repeated}{number of subsmaples used to derive the final estimator. The
+default is set to be \code{repeated = 1}. When \code{repeated > 1}, the
+variance matrix is not estimated by the sandwich estimator.
+User is suggested to use multiple subsamples (\code{repeated > 1}) only 
+for the least-squares based semi-prarmetric AFT model whose slope matrix
+is estimated by a resampling method. And the corresponding 
+sandwich estimator will overestimate the variance when the censoring
+rate is high censoring rate. Moreover, when \code{repeated > 1}, only the
+variance matrix with respect to the full sample estimator can be estimated.
+Moreover, \code{repeated} should be larger than the number of covariates \code{p}.}
 
-\item{constrasts}{...}
+\item{control}{controls equation solver, maxiter, tolerance and 
+resampling variance estimation.}
 
-\item{control}{controls maxiter and tolerance.}
+\item{contrasts}{an optional list.}
 }
 \value{
-The function return a list containing at least the following components:
+\code{aftosmac} returns an object of class "\code{aftosmac}" representing the fit.
+An object of class "\code{aftosmac}" is a list containing at least the following components:
 \describe{
-  \item{coe}{a vector of point estimates}
-  \item{std}{a vector of estimated standard errors}
-  \item{converge}{indicator of convergence}
-  \item{iter}{iteration needed to get the converging result}
+  \item{coefficients}{A vector of beta estimates}
+  \item{covmat}{A matrix of covariance estimates}
+  \item{convergence}{An integer code indicating type of convergence. If \code{repeated > 1},
+       this object will be a frequency table of all possible convergences types.}
+  \describe{
+    \item{0}{indicates successful convergence.}
+    \item{1}{indicates that the iteration limit \code{maxit} has been reached.}
+    \item{2}{indicates failure due to stagnation.}
+  }
 }
 }
 \description{
-Estimate the full data statistical inferences based on a subsample. The
-subsample is derived by sampling with probabilities. The sampling probabilities
-is defined by the A-optimality and L-optimality from optimal design of
-experiments.
+Fit a accelerated failure time (AFT) model based on a small subsample. 
+The subsample is chosen by sampling with resampling. The subsampling probabilities (SSPs)
+are derived by the A-optimal and L-optimal criteria from the optimal design of
+experiment. Three types of models are supported, the Weibull parametric AFT model,
+the rank-based semi-parametric AFT model and the least-squares based semi-parametric
+AFT model with the Gehan's weight.
+}
+\details{
+The estimating equation is solved by
+a block gradient decent method for the Weibull AFT model and by an iterative approach 
+for the least-squares based semi-prarmetric AFT model. 
+For the rank-based semi-parametric AFT model, the non-smooth estimating equation
+is smoothed by an induced smooth procedure which is solved the 
+by the Quasi Newton's method implemented as \code{nleqslv} in the package \pkg{nleqslv}.
+
+When \code{repeated = 1}, the variance matrix is estimated by a sandwich form
+\deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of 
+the estimating function and \eqn{A} is the slope matrix. The sandwich estimator
+estimates the variance matrix well for the Weibull parametric AFT model and the rank-based
+semi-prarmetric AFT model. For the least-squares based semi-prarmetric AFT 
+model whose slope matrix
+is estimated by a resampling method. And the corresponding 
+sandwich estimator will overestimate the variance when the censoring
+rate is high censoring rate. We fix this specific problem for the least-squares based approach
+by selecting more than one subsample (\code{repeated > 1}) to estimate the variance matrix
+directly by multiple subsample estimators.
+The variance matrix with respect to the full data estimator
+is calculated used these estimators instead of using the sandwich form.
+Moreover, when \code{se = "parTrue"}, we estimate the
+variance matrix with respect to the true regression coefficient and when
+\code{se = "parFull"}, the variance matrix with respect to the full data estimator
+is evaluated. 
+
+The optimal SSPs are estimated by a pilot estimator using a small pilot subsample.
+The subsample estimator is derived by the subsample chosed based on the estimated
+optimal SSPs. To enhance the estimation accuracy, the pilot estimator and the subsample
+estimator need to be combined. We provided two methods for combination. When
+\code{combine = "sample"}, the pilot sample and the subsample sample are combined to
+derived the final estimator. When \code{combine = "estimator"}, the pilot estimator
+and the subsample estimator is combined to derived the final estimator. The second
+method is less time-consuming and is always used in the divide-and-conquer approach.
+}
+\examples{
+## Prepare the dataset
+
+data(lymp, package = "aftosmac")
+x <- lymp$covariates
+y <- lymp$response
+delta <- lymp$delta
+
+dat <- as.data.frame(cbind(x, y, delta))
+
+## Fit the semi-prametric AFT model based on the rank-based approach
+fit <- aftosmac(Surv(y, delta) ~ Age + Male + Nonwhite + Year, 
+                size.pilot = 500, size.subsample = 2000,
+                sspType = "optA", model = "gehan", se = "parTrue",
+                combine = "estimator", data = dat)
+summary(fit)
+}
+\references{
+Yang, Z., Wang, H., Yan, J. (2023) Subsampling Approach for Least Squares
+Fitting of Semi-parametric Accelerated Failure Time Models to Massive
+Survival Data.
+\emph{Research Square preprint}, https://www.researchsquare.com/article/rs-2866415/v1.
+
+Yang Z., Wang, H., Yan, J. (2022) Optimal Subsampling for
+Parametric Accelerated Failure Time Models with Massive
+Survival Data.  2022; 27): 5421–5431.
+\emph{Statistics in Medicine}, \bold{41}(27): 5421–5431.
+
+Zeng, D. and Lin, D. Y. (2008)
+Efficient Resampling Methods for Nonsmooth Estimating Functions.
+\emph{Biostatistics}, \bold{9}, 355--363
+
+Chiou, S., Kang, S. and Yan, J. (2014)
+Fast Accelerated Failure Time Modeling for Case-Cohort Data. \emph{Statistics and Computing},
+\bold{24}(4): 559--568.
+
+Johnson, L. M. and Strawderman, R. L. (2009)
+Induced Smoothing for the Semiparametric Accelerated Failure Time Model:
+Asymptotic and Extensions to Clustered Data. \emph{Biometrika}, \bold{96}, 577 -- 590.
 }
 \keyword{aftosmac}

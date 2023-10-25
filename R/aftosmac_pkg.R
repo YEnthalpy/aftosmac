@@ -1,8 +1,17 @@
 #' aftosmac: Optimal Subsampling Methods for Accelerated Failure Time Models
 #'
-#' A package that use optimal subsampling method to fast estimate the
-#' regression coefficients and their statistical inferences for Accelerated
-#' Failure Time (AFT) models.
+#' A package that use optimal subsampling method to fast estimate the Accelerated
+#' Failure Time (AFT) models. This package implements developed inference 
+#' procedures for parametric AFT models and semi-parametric AFT models
+#' with both the rank-based approach and the least squares approach by the optimal 
+#' subsampling approach. For the parametric AFT models, the package only 
+#' supports the Weibull AFT model and estimates both the scale parameter and 
+#' regression coefficients. For the rank-based approach, the package currently 
+#' only support the Gehan's weight with the smoothed estimating function 
+#' derived by the induced smoothed procedure. We developed two types of optimal
+#' subsampling probabilities (SSPs) based on the A-optimal criteria and the
+#' L-optimal criteria from the optimal design of experiment.
+
 #'
 #' @aliases aftosmac-packages
 #' @references Yang, Z., Wang, H., Yan, J. (2023) Subsampling Approach for Least Squares
