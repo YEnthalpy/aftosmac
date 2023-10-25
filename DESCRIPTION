@@ -6,10 +6,10 @@ Version: 1.0
 Date: 2023-07-15
 License: GPL (>= 3)
 NeedsCompilation: yes
-Imports: Rcpp, survival, nleqslv, methods
+Imports: Rcpp, survival, nleqslv, methods, stats
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
-Depends: R (>= 3.4.0)
+Depends: R (>= 3.5.0)
 Authors@R: c(person("Zehan", "Yang", email = "zehan.yang@uconn.edu", role = c("aut", "cre")),
 	   person("Jun", "Yan", role = "aut"),
 	   person("HaiYing", "Wang", role = "aut"))
@@ -18,4 +18,4 @@ Author: Zehan Yang [aut, cre],
   HaiYing Wang [aut]
 Maintainer: Zehan Yang <zehan.yang@uconn.edu>
 RoxygenNote: 7.2.3
-
+LazyData: true

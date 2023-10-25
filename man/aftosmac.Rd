@@ -14,7 +14,7 @@ aftosmac(
   se = c("NULL", "parTrue", "parFull"),
   combine = c("estimator", "sample"),
   repeated = 1,
-  constrasts = NULL,
+  contrasts = NULL,
   control = list()
 )
 }
@@ -27,7 +27,7 @@ in the \code{formula}.}
 
 \item{size.pilot}{the pilot subsample size}
 
-\item{size.subsample}{the subsample size which is always much large than 
+\item{size.subsample}{the subsample size which is always much large than
 the pilot subsample size}
 
 \item{sspType}{the type of subsampling probabilities (SSPs). Three types of
@@ -54,7 +54,7 @@ the pilot subsample size}
 
 \item{combine}{methods to combine the results by the pilot sample and the subsample:
 \describe{
-  \item{\code{sample}}{combine the pilot sample and the subsample to derive the 
+  \item{\code{sample}}{combine the pilot sample and the subsample to derive the
                         final estimator by the combined subsample.}
   \item{\code{estimator}}{combine the pilot estimator and the subsample estimator}
 }}
@@ -62,18 +62,18 @@ the pilot subsample size}
 \item{repeated}{number of subsmaples used to derive the final estimator. The
 default is set to be \code{repeated = 1}. When \code{repeated > 1}, the
 variance matrix is not estimated by the sandwich estimator.
-User is suggested to use multiple subsamples (\code{repeated > 1}) only 
+User is suggested to use multiple subsamples (\code{repeated > 1}) only
 for the least-squares based semi-prarmetric AFT model whose slope matrix
-is estimated by a resampling method. And the corresponding 
+is estimated by a resampling method. And the corresponding
 sandwich estimator will overestimate the variance when the censoring
 rate is high censoring rate. Moreover, when \code{repeated > 1}, only the
 variance matrix with respect to the full sample estimator can be estimated.
 Moreover, \code{repeated} should be larger than the number of covariates \code{p}.}
 
-\item{control}{controls equation solver, maxiter, tolerance and 
-resampling variance estimation.}
-
 \item{contrasts}{an optional list.}
+
+\item{control}{controls equation solver, maxiter, tolerance and
+resampling variance estimation.}
 }
 \value{
 \code{aftosmac} returns an object of class "\code{aftosmac}" representing the fit.
@@ -91,7 +91,7 @@ An object of class "\code{aftosmac}" is a list containing at least the following
 }
 }
 \description{
-Fit a accelerated failure time (AFT) model based on a small subsample. 
+Fit a accelerated failure time (AFT) model based on a small subsample.
 The subsample is chosen by sampling with resampling. The subsampling probabilities (SSPs)
 are derived by the A-optimal and L-optimal criteria from the optimal design of
 experiment. Three types of models are supported, the Weibull parametric AFT model,
@@ -100,19 +100,19 @@ AFT model with the Gehan's weight.
 }
 \details{
 The estimating equation is solved by
-a block gradient decent method for the Weibull AFT model and by an iterative approach 
-for the least-squares based semi-prarmetric AFT model. 
+a block gradient decent method for the Weibull AFT model and by an iterative approach
+for the least-squares based semi-prarmetric AFT model.
 For the rank-based semi-parametric AFT model, the non-smooth estimating equation
-is smoothed by an induced smooth procedure which is solved the 
+is smoothed by an induced smooth procedure which is solved the
 by the Quasi Newton's method implemented as \code{nleqslv} in the package \pkg{nleqslv}.
 
 When \code{repeated = 1}, the variance matrix is estimated by a sandwich form
-\deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of 
+\deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of
 the estimating function and \eqn{A} is the slope matrix. The sandwich estimator
 estimates the variance matrix well for the Weibull parametric AFT model and the rank-based
-semi-prarmetric AFT model. For the least-squares based semi-prarmetric AFT 
+semi-prarmetric AFT model. For the least-squares based semi-prarmetric AFT
 model whose slope matrix
-is estimated by a resampling method. And the corresponding 
+is estimated by a resampling method. And the corresponding
 sandwich estimator will overestimate the variance when the censoring
 rate is high censoring rate. We fix this specific problem for the least-squares based approach
 by selecting more than one subsample (\code{repeated > 1}) to estimate the variance matrix
@@ -122,7 +122,7 @@ is calculated used these estimators instead of using the sandwich form.
 Moreover, when \code{se = "parTrue"}, we estimate the
 variance matrix with respect to the true regression coefficient and when
 \code{se = "parFull"}, the variance matrix with respect to the full data estimator
-is evaluated. 
+is evaluated.
 
 The optimal SSPs are estimated by a pilot estimator using a small pilot subsample.
 The subsample estimator is derived by the subsample chosed based on the estimated
