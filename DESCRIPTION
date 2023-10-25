@@ -1,9 +1,9 @@
 Package: aftosmac
 Type: Package
-Title: Optimal Subsampling Method for Acceleated Failure Time Models
-Description: Optimal Subsampling Method for Acceleated Failure Time Models.
+Title: Optimal Subsampling Method for Accelerated Failure Time Models
+Description: Optimal Subsampling Method for Accelerated Failure Time Models.
 Version: 1.0
-Date: 2023-07-15
+Date: 2023-10-25
 License: GPL (>= 3)
 NeedsCompilation: yes
 Imports: Rcpp, survival, nleqslv, methods, stats
