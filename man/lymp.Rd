@@ -19,9 +19,7 @@
       \item{Age: continous variable, the age in the unit of year}
       \item{Nonwhite: the nonwhite race indicator (1 =nonwhite)}
       \item{Male: male indicator (1 = male)}
-      \item{Diagnostic Year: continuous variable, the year when patients are diagnosed}
-      \item{Age*Nonwhite: interaction between Age and Nonwhite}
-      \item{Age*Male: interaction between Age and Male}
+      \item{Diagnostic_year: continuous variable, the year when patients are diagnosed}
     }
 }
 \keyword{datasets}
