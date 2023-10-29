@@ -1,3 +1,13 @@
+parllk.weibull <- function(DF, engine) {
+  xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
+  y <- log(DF$time)
+  ssps <- DF$ssps
+  er <- drop((y - xmat %*% engine@b[-1]) / engine@b[1])
+  exper <- exp(er)
+  sum((exper - DF$status * (er - log(engine@b[1]))) / ssps) / engine@n / nrow(DF)
+}
+
+
 parFit.weibull <- function(DF, engine) {
   xmat <- as.matrix(DF[, -c(1, 2, ncol(DF))])
   y <- log(DF$time)
@@ -5,32 +15,59 @@ parFit.weibull <- function(DF, engine) {
   beta <- engine@b0[-1]
   sigma <- engine@b0[1]
   for (i in seq_len(engine@maxit)) {
+    engine@b <- c(sigma, beta)
+    llk.old <- parllk.weibull(DF, engine)
     # update beta
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
     # first derivative with respect to beta
-    d.beta <- colSums(xmat * (exper - DF$status) / ssps / sigma)
+    d.beta <- -colSums(xmat * (exper - DF$status) / ssps / sigma) / engine@n / nrow(DF)
     # second derivative with respec to beta
-    d2.beta <- -t(xmat * exper / ssps) %*% xmat / (sigma^2)
+    d2.beta <- t(xmat * exper / ssps) %*% xmat / (sigma^2) / engine@n / nrow(DF)
     updBeta <- tryCatch(
       solve(d2.beta, -d.beta),
       error = function(e) NA,
       warning = function(w) NA
     )
     if (is.na(updBeta[1])) {
-      return(list(coe = rep(NA, ncol(xmat)+1), converge = 1, iter = NA))
+      return(list(coe = rep(NA, ncol(xmat)+1),
+                  converge = 1, iter = NA))
     }
-    beta <- beta + updBeta
+    engine@b <- c(sigma, beta + updBeta)
+    # backtracking linear search
+    llk.new <- parllk.weibull(DF, engine)
+    t <- 1
+    norm.dbeta <- sum(d.beta ^ 2) / 2
+    while (llk.new > llk.old + t * norm.dbeta) {
+      t <- t / 2
+      engine@b <- c(sigma, beta + t * updBeta)
+      llk.new <- parllk.weibull(DF, engine)
+    }
+    beta <- beta + t * updBeta
+
+    engine@b <- c(sigma, beta)
+    llk.old <- parllk.weibull(DF, engine)
     # update sigma
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
     # first derivative with respect to sigma
-    d.sig <- sum((er * exper - DF$status * er - DF$status) / ssps / sigma)
+    d.sig <- sum((er * exper - DF$status * er - DF$status) / ssps / sigma) / engine@n / nrow(DF)
     # second derivative with respect to sigma
     d2.sig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
-                   * exper) / ssps) / (sigma^2)
+                   * exper) / ssps) / (sigma^2) / engine@n / nrow(DF)
     updSig <- -d.sig / d2.sig
-    sigma <- sigma + updSig
+    engine@b <- c(sigma + updSig, beta)
+    # backtracking linear search
+    llk.new <- parllk.weibull(DF, engine)
+    t <- 1
+    norm.dsig <- d.sig ^ 2 / 2
+    while (llk.new > llk.old + t * norm.dsig) {
+      t <- t / 2
+      engine@b <- c(sigma + t * updSig, beta)
+      llk.new <- parllk.weibull(DF, engine)
+    }
+    sigma <- sigma + t * updSig
+
     if (sqrt(sum(updSig^2 + updBeta^2)) <= engine@tol) {
       return(list(coe = c(sigma, beta), converge = 0, iter = i))
     }
