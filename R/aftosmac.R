@@ -339,8 +339,7 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
 
   if (method == "par.weibull") {
     names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
-    covmat <- covmat[-2, -2]
-    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-2]
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)
   }else if (method == "semi.ls") {
     names(coe.out) <- colnames(DF)[-c(1, 2, ncol(DF))]
     if (!is.na(covmat[1])){

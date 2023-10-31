@@ -21,7 +21,7 @@ summary.aftosmac <- function(object,...){
     ind.scale <- which("Scale" %in% names(z$coefficients))
     est.smry <- c(z$coefficients[-ind.scale], z$coefficients[ind.scale])
     ind.scale.se <- which("Scale" %in% colnames(z$covmat))
-    se.smry <- as.numeric(c(NA, sqrt(diag(z$covmat))[-ind.scale.se],
+    se.smry <- as.numeric(c(sqrt(diag(z$covmat))[-ind.scale.se],
                             sqrt(diag(z$covmat))[ind.scale.se]))
   }else {
     est.smry <- z$coefficients
