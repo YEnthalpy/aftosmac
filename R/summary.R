@@ -13,7 +13,8 @@ summary.aftosmac <- function(object,...){
     temp <- list(Estimate = est.smry, StdErr = rep(NA, length(est.smry)),
                  z.value = rep(NA, length(est.smry)),
                  p.value = rep(NA, length(est.smry)))
-    res <- list(call = z$call, coefficients = temp, model = z$model)
+    res <- list(call = z$call, coefficients = temp, model = z$model,
+                covg = z$convergence)
     class(res) <- "summary.aftosmac"
     return(res)
   }
