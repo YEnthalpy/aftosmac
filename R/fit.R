@@ -43,7 +43,7 @@ parFit.weibull <- function(DF, engine) {
       engine@b <- c(sigma, beta + t * updBeta)
       llk.new <- parllk.weibull(DF, engine)
     }
-    beta <- beta + t * updBeta
+    beta <- engine@b[-1]
 
     engine@b <- c(sigma, beta)
     llk.old <- parllk.weibull(DF, engine)
@@ -51,24 +51,24 @@ parFit.weibull <- function(DF, engine) {
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
     # first derivative with respect to sigma
-    d.sig <- sum((er * exper - DF$status * er - DF$status) / ssps / sigma) / engine@n / nrow(DF)
+    d.lsig <- sum((er * exper - DF$status * er - DF$status) / ssps) / engine@n / nrow(DF)
     # second derivative with respect to sigma
-    d2.sig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
-                   * exper) / ssps) / (sigma^2) / engine@n / nrow(DF)
-    updSig <- -d.sig / d2.sig
-    engine@b <- c(sigma + updSig, beta)
+    d2.lsig <- sum((DF$status + 2 * er * (DF$status - exper) - (er^2)
+                   * exper) / ssps) / engine@n / nrow(DF) + d.lsig
+    updlSig <- -d.lsig / d2.lsig
+    engine@b <- c(exp(log(sigma) + updlSig), beta)
     # backtracking linear search
     llk.new <- parllk.weibull(DF, engine)
     t <- 1
-    norm.dsig <- d.sig ^ 2 / 2
-    while (llk.new > llk.old + t * norm.dsig) {
+    norm.dlsig <- d.lsig ^ 2 / 2
+    while (llk.new > llk.old + t * norm.dlsig) {
       t <- t / 2
-      engine@b <- c(sigma + t * updSig, beta)
+      engine@b <- c(exp(log(sigma) + t * updlSig), beta)
       llk.new <- parllk.weibull(DF, engine)
     }
-    sigma <- sigma + t * updSig
+    sigma <- engine@b[1]
 
-    if (sqrt(sum(updSig^2 + updBeta^2)) <= engine@tol) {
+    if (sqrt(sum(updlSig^2 + updBeta^2)) <= engine@tol) {
       return(list(coe = c(sigma, beta), converge = 0, iter = i))
     }
     if (i == engine@maxit) {
