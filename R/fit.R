@@ -14,9 +14,10 @@ parFit.weibull <- function(DF, engine) {
   ssps <- DF$ssps
   beta <- engine@b0[-1]
   sigma <- engine@b0[1]
+  engine@b <- c(sigma, beta)
+  llk.new <- parllk.weibull(DF, engine)
   for (i in seq_len(engine@maxit)) {
-    engine@b <- c(sigma, beta)
-    llk.old <- parllk.weibull(DF, engine)
+    llk.old <- llk.new
     # update beta
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
@@ -36,17 +37,15 @@ parFit.weibull <- function(DF, engine) {
     engine@b <- c(sigma, beta + updBeta)
     # backtracking linear search
     llk.new <- parllk.weibull(DF, engine)
-    t <- 1
+    t.bt <- 1
     norm.dbeta <- sum(d.beta ^ 2) / 2
-    while (llk.new > llk.old + t * norm.dbeta) {
-      t <- t / 2
-      engine@b <- c(sigma, beta + t * updBeta)
+    while (llk.new > llk.old + t.bt * norm.dbeta) {
+      t.bt <- t.bt / 2
+      engine@b <- c(sigma, beta + t.bt * updBeta)
       llk.new <- parllk.weibull(DF, engine)
     }
-    beta <- engine@b[-1]
 
-    engine@b <- c(sigma, beta)
-    llk.old <- parllk.weibull(DF, engine)
+    llk.old <- llk.new
     # update sigma
     er <- drop((y - xmat %*% beta) / sigma)
     exper <- exp(er)
@@ -59,16 +58,15 @@ parFit.weibull <- function(DF, engine) {
     engine@b <- c(exp(log(sigma) + updlSig), beta)
     # backtracking linear search
     llk.new <- parllk.weibull(DF, engine)
-    t <- 1
+    t.sig <- 1
     norm.dlsig <- d.lsig ^ 2 / 2
-    while (llk.new > llk.old + t * norm.dlsig) {
-      t <- t / 2
-      engine@b <- c(exp(log(sigma) + t * updlSig), beta)
+    while (llk.new > llk.old + t.sig * norm.dlsig) {
+      t.sig <- t.sig / 2
+      engine@b <- c(exp(log(sigma) + t.sig * updlSig), beta)
       llk.new <- parllk.weibull(DF, engine)
     }
-    sigma <- engine@b[1]
 
-    if (sqrt(sum(updlSig^2 + updBeta^2)) <= engine@tol) {
+    if (sqrt(t.sig^2 * updlSig^2 + sum(t.bt^2 * updBeta^2)) <= engine@tol) {
       return(list(coe = c(sigma, beta), converge = 0, iter = i))
     }
     if (i == engine@maxit) {
