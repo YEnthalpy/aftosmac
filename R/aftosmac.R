@@ -238,6 +238,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
   if (sspType == "uniform") {
     combine <- "sample"
   }
+  mtd.name <- method
   if (method == "least-squares") {
     method <- "semi.ls"
   }else if (method == "rank") {
@@ -290,7 +291,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = covg.out,
                   n.iteration = NA,
-                  ssp.type = sspType, method = method,
+                  ssp.type = sspType, method = mtd.name,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
@@ -313,7 +314,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = table(covg.out),
                   n.iteration = NA,
-                  ssp.type = sspType, method = method,
+                  ssp.type = sspType, method = mtd.name,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
@@ -351,7 +352,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
               coefficients = coe.out, covmat = covmat, 
               convergence = covg.out,
               n.iteration = itr.out,
-              ssp.type = sspType, method = method,
+              ssp.type = sspType, method = mtd.name,
               combine = combine, n.repeat = n.repeat)
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
