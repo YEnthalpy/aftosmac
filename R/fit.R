@@ -13,6 +13,7 @@ parFit.weibull <- function(DF, engine) {
   y <- log(DF$time)
   ssps <- DF$ssps
   engine@r <- nrow(DF)
+  engine@tol <- 1e-15
   engine@b <- c(engine@b0[1], engine@b0[-1])
   llk.new <- parllk.weibull(DF, engine)
   for (i in seq_len(engine@maxit)) {
