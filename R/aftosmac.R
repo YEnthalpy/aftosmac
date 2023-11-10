@@ -83,7 +83,7 @@ onefit <- function(DF, engine, optSSPs, combine, method, n.repeat) {
   if (n.repeat != 1) {
     DF.Samp <- NA
   }
-  return(list(coe = coe.out, itr = itr.out, covg = covg.out, DF.Samp = DF.Samp))
+  return(list(coe = coe.out, iter = itr.out, covg = covg.out, DF.Samp = DF.Samp))
 }
 
 
@@ -289,6 +289,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     if (covg.out != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = covg.out,
+                  n.iteration = NA,
                   ssp.type = sspType, method = method,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
@@ -298,6 +299,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
       return(out)
     }
     coe.out <- subest[[1]]$coe
+    itr.out <- subest[[1]]$iter
     DF.Samp <- subest[[1]]$DF.Samp
     if (method == "semi.rank.gehan.s") {
       engine@b <- coe.out[-1]
@@ -310,6 +312,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     if (sum(covg.out) != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = table(covg.out),
+                  n.iteration = NA,
                   ssp.type = sspType, method = method,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
@@ -320,7 +323,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     coe.mat <- sapply(subest, function(t){t[["coe"]]})
     coe.out <- rowMeans(coe.mat)
     covmat <- list("Full Data Estimates" = var(t(coe.mat[-1, ])) / n.repeat)
-    itr.out <- mean(sapply(subest, function(t){t[["itr"]]}))
+    itr.out <- mean(sapply(subest, function(t){t[["iter"]]}))
   }
 
   if (method == "par.weibull") {
@@ -347,6 +350,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
   out <- list(call = scall, vari.name = names(coe.out),
               coefficients = coe.out, covmat = covmat, 
               convergence = covg.out,
+              n.iteration = itr.out,
               ssp.type = sspType, method = method,
               combine = combine, n.repeat = n.repeat)
   out$x <- DF[-c(1, 2, ncol(DF))]
