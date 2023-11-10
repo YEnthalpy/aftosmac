@@ -1,8 +1,5 @@
 # get variance matrix
-vcovm <- function(DF.Samp, engine, se) {
-  if (se == "NULL") {
-    return(NA)
-  }
+vcovm <- function(DF.Samp, engine) {
   r.Sec <- nrow(DF.Samp)
   g <- aftosmac.est(DF.Samp, engine)
   # estimate vc
@@ -13,14 +10,11 @@ vcovm <- function(DF.Samp, engine, se) {
   m_inv <- solve(aftosmac.slope(DF.Samp, engine))
   # sandwich estimator for full estimator
   vx <- m_inv %*% vc %*% t(m_inv) / r.Sec
-  out <- vx
   # sandwich estimator for true coe
-  if (se == "parTrue") {
-    vc_add <- crossprod(DF.Samp$ssps * g, g) / r.Sec * engine@n
-    vc_amend <- vc + (r.Sec / engine@n) * vc_add
-    vx_amend <- m_inv %*% vc_amend %*% m_inv / r.Sec
-    out <- vx_amend
-  }
+  vc_add <- crossprod(DF.Samp$ssps * g, g) / r.Sec * engine@n
+  vc_amend <- vc + (r.Sec / engine@n) * vc_add
+  vx_amend <- m_inv %*% vc_amend %*% m_inv / r.Sec
+  out <- list("Full Data Estimates" = vx, "True Regression Coefficients" = vx_amend)
   return(out)
 }
 
@@ -39,7 +33,7 @@ intcp <- function(DF.Samp, engine) {
 }
 
 # Function to get one subsample estimator
-onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
+onefit <- function(DF, engine, optSSPs, combine, method, n.repeat) {
   indPt <- optSSPs$ind.pt
   # sample with replacement
   indSec <- sample(engine@n, engine@r, prob = optSSPs$ssp, replace = TRUE)
@@ -86,7 +80,7 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
     engine@b <- coe.out
     coe.out <- intcp(DF.Samp, engine)
   }
-  if (repeated != 1) {
+  if (n.repeat != 1) {
     DF.Samp <- NA
   }
   return(list(coe = coe.out, itr = itr.out, covg = covg.out, DF.Samp = DF.Samp))
@@ -109,7 +103,7 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #' is smoothed by an induced smooth procedure which is solved the
 #' by the Quasi Newton's method implemented as \code{nleqslv} in the package \pkg{nleqslv}.
 #'
-#' When \code{repeated = 1}, the variance matrix is estimated by a sandwich form
+#' When \code{n.repeat = 1}, the variance matrix is estimated by a sandwich form
 #' \deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of
 #' the estimating function and \eqn{A} is the slope matrix. The sandwich estimator
 #' estimates the variance matrix well for the Weibull parametric AFT model and the rank-based
@@ -118,14 +112,12 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #' is estimated by a resampling method. And the corresponding
 #' sandwich estimator will overestimate the variance when the censoring
 #' rate is high censoring rate. We fix this specific problem for the least-squares based approach
-#' by selecting more than one subsample (\code{repeated > 1}) to estimate the variance matrix
+#' by selecting more than one subsample (\code{n.repeat > 1}) to estimate the variance matrix
 #' directly by multiple subsample estimators.
 #' The variance matrix with respect to the full data estimator
 #' is calculated used these estimators instead of using the sandwich form.
-#' Moreover, when \code{se = "parTrue"}, we estimate the
-#' variance matrix with respect to the true regression coefficient and when
-#' \code{se = "parFull"}, the variance matrix with respect to the full data estimator
-#' is evaluated.
+#' Moreover, the variance matrix with respect to the full data estimator and true
+#' regression coefficients are both calculated.
 #'
 #' The optimal SSPs are estimated by a pilot estimator using a small pilot subsample.
 #' The subsample estimator is derived by the subsample chosed based on the estimated
@@ -142,10 +134,21 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #'     The \code{response} is a \code{Surv} object with right censoring.
 #' @param data an data.frame in which to interpret the variables occurring
 #'     in the \code{formula}.
-#' @param contrasts an optional list.
-#' @param size.pilot the pilot subsample size
-#' @param size.subsample the subsample size which is always much large than
+#' @param n.pilot the pilot subsample size
+#' @param n.sub the subsample size which is always much large than
 #'     the pilot subsample size
+#' @param n.repeat number of subsmaples used to derive the final estimator. The
+#'     default is set to be \code{n.repeat = 1}. When \code{n.repeat > 1}, the
+#'     variance matrix is not estimated by the sandwich estimator.
+#'     User is suggested to use multiple subsamples (\code{n.repeat > 1}) only
+#'     for the least-squares based semi-prarmetric AFT model whose slope matrix
+#'     is estimated by a resampling method. And the corresponding
+#'     sandwich estimator will overestimate the variance when the censoring
+#'     rate is high censoring rate. Moreover, when \code{n.repeat > 1}, only the
+#'     variance matrix with respect to the full sample estimator can be estimated.
+#'     Moreover, \code{n.repeat} should be larger than the number of covariates \code{p}.
+#' @param contrasts an optional list.
+#' @param subset subset ot the observations to be used in the fit.
 #' @param sspType the type of subsampling probabilities (SSPs). Three types of
 #'     SSPs are provided:
 #' \describe{
@@ -153,17 +156,12 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #'   \item{\code{optA}}{the A-optimal SSPs, always yields the least mean square errors.}
 #'   \item{\code{optL}}{the L-optimal SSPs which is less time-consuming than the A-optimal SSPs.}
 #' }
-#' @param model regression model to fit the data:
+#' @param method method to fit the data:
 #' \describe{
 #'   \item{\code{weibull}}{the Weibull parametric AFT model.}
 #'   \item{\code{ls}}{the least-square based semi-parametric AFT model.}
 #'   \item{\code{rank}}{the rank based semi-parametric AFT model which requires much less subsample
 #'                       size to get a converging results than the least-squares approach.}
-#' }
-#' @param se types of variance matrix to estimate:
-#' \describe{
-#'   \item{\code{parFull}}{estimate the variance matrix with respect to the full dample estimator.}
-#'   \item{\code{parTrue}}{estimate the variance matrix with respect to the true coefficients.}
 #' }
 #' @param combine methods to combine the results by the pilot sample and the subsample:
 #' \describe{
@@ -171,18 +169,9 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #'                         final estimator by the combined subsample.}
 #'   \item{\code{estimator}}{combine the pilot estimator and the subsample estimator}
 #' }
-#' @param repeated number of subsmaples used to derive the final estimator. The
-#'     default is set to be \code{repeated = 1}. When \code{repeated > 1}, the
-#'     variance matrix is not estimated by the sandwich estimator.
-#'     User is suggested to use multiple subsamples (\code{repeated > 1}) only
-#'     for the least-squares based semi-prarmetric AFT model whose slope matrix
-#'     is estimated by a resampling method. And the corresponding
-#'     sandwich estimator will overestimate the variance when the censoring
-#'     rate is high censoring rate. Moreover, when \code{repeated > 1}, only the
-#'     variance matrix with respect to the full sample estimator can be estimated.
-#'     Moreover, \code{repeated} should be larger than the number of covariates \code{p}.
 #' @param control controls equation solver, maxiter, tolerance and
 #'     resampling variance estimation.
+
 
 
 #' @export
@@ -192,7 +181,7 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #' \describe{
 #'   \item{coefficients}{A vector of beta estimates}
 #'   \item{covmat}{A matrix of covariance estimates}
-#'   \item{convergence}{An integer code indicating type of convergence. If \code{repeated > 1},
+#'   \item{convergence}{An integer code indicating type of convergence. If \code{n.repeat > 1},
 #'        this object will be a frequency table of all possible convergences types.}
 #'   \describe{
 #'     \item{0}{indicates successful convergence.}
@@ -225,19 +214,16 @@ onefit <- function(DF, engine, optSSPs, combine, method, repeated) {
 #' @keywords aftosmac
 #'
 
-aftosmac <- function(formula, data, size.pilot, size.subsample,
+aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
+                     contrasts = NULL, subset,
                      sspType = c("optA", "optL", "uniform"),
-                     model = c("weibull", "ls", "gehan"),
-                     se = c("NULL", "parTrue", "parFull"),
+                     method = c("parametric", "least-squares", "rank"),
                      combine = c("estimator", "sample"),
-                     repeated = 1,
-                     contrasts = NULL,
                      control = list()) {
-  method <- match.arg(model)
-  se <- match.arg(se)
+  method <- match.arg(method)
   sspType <- match.arg(sspType)
   scall <- match.call() # call function, including all inputs
-  mnames <- c("", "formula", "data") # variable related to data
+  mnames <- c("", "formula", "data", "subset") # variable related to data
   cnames <- names(scall) # names of input arguments
   cnames <- cnames[match(mnames, cnames, 0)] # common arguments of inputs and data
   mcall <- scall[cnames] # input arguments related to model
@@ -248,17 +234,17 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
   if (!inherits(m[[1]], "Surv") || ncol(obj) > 2)
     stop("aftosmac only supports Surv object with right censoring.", call. = FALSE)
   formula[[2]] <- NULL
-  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m))) # add covariates
+  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
   if (sspType == "uniform") {
     combine <- "sample"
   }
-  if (model == "ls") {
+  if (method == "least-squares") {
     method <- "semi.ls"
-  }else if (model == "gehan") {
+  }else if (method == "rank") {
     # delete intercept for rank-based approach
     DF <- DF[,-which(colnames(DF) == "(Intercept)")]
     method <- "semi.rank.gehan.s"
-  }else if (model == "weibull") {
+  }else if (method == "parametric") {
     method <- "par.weibull"
   }
   # create engine
@@ -283,8 +269,8 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
   }
 
   # get optimal SSPs
-  engine@r0 <- size.pilot
-  engine@r <- size.subsample
+  engine@r0 <- n.pilot
+  engine@r <- n.sub
   engine@n <- nrow(DF)
   optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
   DF$ssps <- optSSPs$ssp
@@ -294,17 +280,17 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
   }
 
   # get subsample estimator
-  subest <- replicate(repeated,
-                      list(onefit(DF, engine, optSSPs, combine, method, repeated)))
+  subest <- replicate(n.repeat,
+                      list(onefit(DF, engine, optSSPs, combine, method, n.repeat)))
 
   engine@ind_sub <- seq_len(engine@r + engine@r0)
-  if (repeated == 1) {
+  if (n.repeat == 1) {
     covg.out <- subest[[1]]$covg
     if (covg.out != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = covg.out,
-                  var.meth = se, ssp.type = sspType, model = model,
-                  combine = combine, repeated = repeated)
+                  ssp.type = sspType, method = method,
+                  combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
 
@@ -318,14 +304,14 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
     }else {
       engine@b <- coe.out
     }
-    covmat <- vcovm(DF.Samp, engine, se)
+    covmat <- vcovm(DF.Samp, engine)
   }else {
     covg.out <- sapply(subest, function(t){t[["covg"]]})
     if (sum(covg.out) != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = table(covg.out),
-                  var.meth = se, ssp.type = sspType, model = model,
-                  combine = combine, repeated = repeated)
+                  ssp.type = sspType, method = method,
+                  combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
       class(out) <- "aftosmac"
@@ -333,32 +319,36 @@ aftosmac <- function(formula, data, size.pilot, size.subsample,
     }
     coe.mat <- sapply(subest, function(t){t[["coe"]]})
     coe.out <- rowMeans(coe.mat)
-    covmat <- var(t(coe.mat[-1, ])) / repeated
+    covmat <- list("Full Data Estimates" = var(t(coe.mat[-1, ])) / n.repeat)
     itr.out <- mean(sapply(subest, function(t){t[["itr"]]}))
   }
 
   if (method == "par.weibull") {
     names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
-    if (!is.na(covmat[1])) {
-      colnames(covmat) <- rownames(covmat) <- names(coe.out)
-    }
+    covmat <- lapply(covmat, function(t){
+      colnames(t) <- rownames(t) <- names(coe.out)
+      return(t)
+    })
   }else if (method == "semi.ls") {
     names(coe.out) <- colnames(DF)[-c(1, 2, ncol(DF))]
-    if (!is.na(covmat[1])){
-      colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
-    }
+    covmat <- lapply(covmat, function(t){
+      colnames(t) <- rownames(t) <- names(coe.out)[-1]
+      return(t)
+    })
   }else if (method == "semi.rank.gehan.s") {
     # add intercept term for the rank based estimator
     names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
-    if (!is.na(covmat[1])){
-      colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
-    }
+    covmat <- lapply(covmat, function(t){
+      colnames(t) <- rownames(t) <- names(coe.out)[-1]
+      return(t)
+    })
   }
 
   out <- list(call = scall, vari.name = names(coe.out),
-              coefficients = coe.out, covmat = covmat, convergence = covg.out,
-              var.meth = se, ssp.type = sspType, model = method,
-              combine = combine, repeated = repeated)
+              coefficients = coe.out, covmat = covmat, 
+              convergence = covg.out,
+              ssp.type = sspType, method = method,
+              combine = combine, n.repeat = n.repeat)
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
   class(out) <- "aftosmac"

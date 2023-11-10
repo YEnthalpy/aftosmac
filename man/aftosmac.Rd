@@ -7,14 +7,14 @@
 aftosmac(
   formula,
   data,
-  size.pilot,
-  size.subsample,
-  sspType = c("optA", "optL", "uniform"),
-  model = c("weibull", "ls", "gehan"),
-  se = c("NULL", "parTrue", "parFull"),
-  combine = c("estimator", "sample"),
-  repeated = 1,
+  n.pilot,
+  n.sub,
+  n.repeat = 1,
   contrasts = NULL,
+  subset,
+  sspType = c("optA", "optL", "uniform"),
+  method = c("parametric", "least-squares", "rank"),
+  combine = c("estimator", "sample"),
   control = list()
 )
 }
@@ -25,10 +25,25 @@ The \code{response} is a \code{Surv} object with right censoring.}
 \item{data}{an data.frame in which to interpret the variables occurring
 in the \code{formula}.}
 
-\item{size.pilot}{the pilot subsample size}
+\item{n.pilot}{the pilot subsample size}
 
-\item{size.subsample}{the subsample size which is always much large than
+\item{n.sub}{the subsample size which is always much large than
 the pilot subsample size}
+
+\item{n.repeat}{number of subsmaples used to derive the final estimator. The
+default is set to be \code{n.repeat = 1}. When \code{n.repeat > 1}, the
+variance matrix is not estimated by the sandwich estimator.
+User is suggested to use multiple subsamples (\code{n.repeat > 1}) only
+for the least-squares based semi-prarmetric AFT model whose slope matrix
+is estimated by a resampling method. And the corresponding
+sandwich estimator will overestimate the variance when the censoring
+rate is high censoring rate. Moreover, when \code{n.repeat > 1}, only the
+variance matrix with respect to the full sample estimator can be estimated.
+Moreover, \code{n.repeat} should be larger than the number of covariates \code{p}.}
+
+\item{contrasts}{an optional list.}
+
+\item{subset}{subset ot the observations to be used in the fit.}
 
 \item{sspType}{the type of subsampling probabilities (SSPs). Three types of
     SSPs are provided:
@@ -38,18 +53,12 @@ the pilot subsample size}
   \item{\code{optL}}{the L-optimal SSPs which is less time-consuming than the A-optimal SSPs.}
 }}
 
-\item{model}{regression model to fit the data:
+\item{method}{method to fit the data:
 \describe{
   \item{\code{weibull}}{the Weibull parametric AFT model.}
   \item{\code{ls}}{the least-square based semi-parametric AFT model.}
   \item{\code{rank}}{the rank based semi-parametric AFT model which requires much less subsample
                       size to get a converging results than the least-squares approach.}
-}}
-
-\item{se}{types of variance matrix to estimate:
-\describe{
-  \item{\code{parFull}}{estimate the variance matrix with respect to the full dample estimator.}
-  \item{\code{parTrue}}{estimate the variance matrix with respect to the true coefficients.}
 }}
 
 \item{combine}{methods to combine the results by the pilot sample and the subsample:
@@ -58,19 +67,6 @@ the pilot subsample size}
                         final estimator by the combined subsample.}
   \item{\code{estimator}}{combine the pilot estimator and the subsample estimator}
 }}
-
-\item{repeated}{number of subsmaples used to derive the final estimator. The
-default is set to be \code{repeated = 1}. When \code{repeated > 1}, the
-variance matrix is not estimated by the sandwich estimator.
-User is suggested to use multiple subsamples (\code{repeated > 1}) only
-for the least-squares based semi-prarmetric AFT model whose slope matrix
-is estimated by a resampling method. And the corresponding
-sandwich estimator will overestimate the variance when the censoring
-rate is high censoring rate. Moreover, when \code{repeated > 1}, only the
-variance matrix with respect to the full sample estimator can be estimated.
-Moreover, \code{repeated} should be larger than the number of covariates \code{p}.}
-
-\item{contrasts}{an optional list.}
 
 \item{control}{controls equation solver, maxiter, tolerance and
 resampling variance estimation.}
@@ -81,7 +77,7 @@ An object of class "\code{aftosmac}" is a list containing at least the following
 \describe{
   \item{coefficients}{A vector of beta estimates}
   \item{covmat}{A matrix of covariance estimates}
-  \item{convergence}{An integer code indicating type of convergence. If \code{repeated > 1},
+  \item{convergence}{An integer code indicating type of convergence. If \code{n.repeat > 1},
        this object will be a frequency table of all possible convergences types.}
   \describe{
     \item{0}{indicates successful convergence.}
@@ -106,7 +102,7 @@ For the rank-based semi-parametric AFT model, the non-smooth estimating equation
 is smoothed by an induced smooth procedure which is solved the
 by the Quasi Newton's method implemented as \code{nleqslv} in the package \pkg{nleqslv}.
 
-When \code{repeated = 1}, the variance matrix is estimated by a sandwich form
+When \code{n.repeat = 1}, the variance matrix is estimated by a sandwich form
 \deqn{\Sigma = A^{-1}V(A^{-1})^T,} where \eqn{V} is the asymptotic variance of
 the estimating function and \eqn{A} is the slope matrix. The sandwich estimator
 estimates the variance matrix well for the Weibull parametric AFT model and the rank-based
@@ -115,14 +111,12 @@ model whose slope matrix
 is estimated by a resampling method. And the corresponding
 sandwich estimator will overestimate the variance when the censoring
 rate is high censoring rate. We fix this specific problem for the least-squares based approach
-by selecting more than one subsample (\code{repeated > 1}) to estimate the variance matrix
+by selecting more than one subsample (\code{n.repeat > 1}) to estimate the variance matrix
 directly by multiple subsample estimators.
 The variance matrix with respect to the full data estimator
 is calculated used these estimators instead of using the sandwich form.
-Moreover, when \code{se = "parTrue"}, we estimate the
-variance matrix with respect to the true regression coefficient and when
-\code{se = "parFull"}, the variance matrix with respect to the full data estimator
-is evaluated.
+Moreover, the variance matrix with respect to the full data estimator and true
+regression coefficients are both calculated.
 
 The optimal SSPs are estimated by a pilot estimator using a small pilot subsample.
 The subsample estimator is derived by the subsample chosed based on the estimated
@@ -135,19 +129,19 @@ method is less time-consuming and is always used in the divide-and-conquer appro
 }
 \examples{
 ## Prepare the dataset
-
 data(lymp, package = "aftosmac")
 
-# center and scale continuous covariates
+## center and scale continuous covariates
 new_lymp <- lymp
-new_lymp$Age <- scale(new_lymp$Age)
-new_lymp$Diagnostic_year <- scale(new_lymp$Diagnostic_year)
+new_lymp[, c("Age", "Diagnostic_year")] <- 
+  lapply(lymp[, c("Age", "Diagnostic_year")], scale)
 
 ## Fit the semi-prametric AFT model based on the rank-based approach
 set.seed(100)
-fit <- aftosmac(Surv(Survtime, Status) ~ Age + Male + Nonwhite + Diagnostic_year,
-                size.pilot = 500, size.subsample = 2000,
-                sspType = "optA", model = "weibull", se = "parTrue",
+fit <- aftosmac(Surv(Survtime, Status) ~ Age + Male + 
+                  Nonwhite + Diagnostic_year,
+                n.pilot = 2000, n.sub = 3000,
+                sspType = "optA", method = "parametric",
                 combine = "estimator", data = new_lymp)
 summary(fit)
 }

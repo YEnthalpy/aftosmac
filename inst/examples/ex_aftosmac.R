@@ -1,16 +1,16 @@
 ## Prepare the dataset
-
 data(lymp, package = "aftosmac")
 
-# center and scale continuous covariates
+## center and scale continuous covariates
 new_lymp <- lymp
-new_lymp$Age <- scale(new_lymp$Age)
-new_lymp$Diagnostic_year <- scale(new_lymp$Diagnostic_year)
+new_lymp[, c("Age", "Diagnostic_year")] <- 
+  lapply(lymp[, c("Age", "Diagnostic_year")], scale)
 
 ## Fit the semi-prametric AFT model based on the rank-based approach
 set.seed(100)
-fit <- aftosmac(Surv(Survtime, Status) ~ Age + Male + Nonwhite + Diagnostic_year,
-                size.pilot = 500, size.subsample = 2000,
-                sspType = "optA", model = "weibull", se = "parTrue",
+fit <- aftosmac(Surv(Survtime, Status) ~ Age + Male + 
+                  Nonwhite + Diagnostic_year,
+                n.pilot = 2000, n.sub = 3000,
+                sspType = "optA", method = "parametric",
                 combine = "estimator", data = new_lymp)
 summary(fit)
