@@ -10,7 +10,7 @@ new_lymp[, c("Age", "Diagnostic_year")] <-
 set.seed(100)
 fit <- aftosmac(Surv(Survtime, Status) ~ Age + Male + 
                   Nonwhite + Diagnostic_year,
-                n.pilot = 2000, n.sub = 3000,
+                n.pilot = 500, n.sub = 4000,
                 sspType = "optA", method = "parametric",
                 combine = "estimator", data = new_lymp)
 summary(fit)
