@@ -65,7 +65,7 @@ parFit.weibull <- function(DF, engine) {
       llk.new <- parllk.weibull(DF, engine)
     }
 
-    if (sqrt(sum((llk.new - llk.old)^2)) <= engine@tol) {
+    if (sqrt(updlSig^2 + sum(updBeta^2)) <= engine@tol) {
       return(list(coe = engine@b, converge = 0, iter = i))
     }
     if (i == engine@maxit) {

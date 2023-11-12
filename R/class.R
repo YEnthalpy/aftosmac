@@ -4,7 +4,7 @@ setClass("Engine",
                         maxit = "numeric", n = "numeric", ind_sub = "numeric",
                         B = "numeric", r0 = "numeric", r = "numeric",
                         alpha = "numeric"),
-         prototype(tol = 1e-10, b0 = 0, b = 0, maxit = 1000,
+         prototype(tol = 1e-8, b0 = 0, b = 0, maxit = 1000,
                    n = 0, ind_sub = 0, B = 20, r0 = 0, r = 0, alpha = 0.2),
          contains = "VIRTUAL")
 
