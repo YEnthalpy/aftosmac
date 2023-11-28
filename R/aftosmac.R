@@ -255,7 +255,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     if (method == "par.weibull") {
       engine@b0 <- c(1, as.numeric(rep(0, ncol(DF)-2)))
     }else if (method == "semi.rank.gehan.s") {
-      engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], DF[, 1])$coefficient)[-1]
+      engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], log(DF[, 1]))$coefficient)[-1]
     }else if (method == "semi.ls") {
       engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
     }
