@@ -268,11 +268,14 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     stop("Initial value length does not match with the numbers of covariates",
          call. = FALSE)
   }
-
+  
+  tol <- engine@tol
+  tol_pt <- engine@tol_pilot
   # get optimal SSPs
   engine@r0 <- n.pilot
   engine@r <- n.sub
   engine@n <- nrow(DF)
+  engine@tol <- tol_pt
   optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
   DF$ssps <- optSSPs$ssp
   if (optSSPs$converge != 0) {
@@ -281,6 +284,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
   }
 
   # get subsample estimator
+  engine@tol <- tol
   subest <- replicate(n.repeat,
                       list(onefit(DF, engine, optSSPs, combine, method, n.repeat)))
 
@@ -357,6 +361,107 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
   class(out) <- "aftosmac"
+  return(out)
+}
+
+aftest <- function(formula, data, contrasts = NULL, subset,
+                   method = c("parametric", "least-squares", "rank"),
+                   control = list()) {
+  method <- match.arg(method)
+  scall <- match.call() # call function, including all inputs
+  mnames <- c("", "formula", "data", "subset") # variable related to data
+  cnames <- names(scall) # names of input arguments
+  cnames <- cnames[match(mnames, cnames, 0)] # common arguments of inputs and data
+  mcall <- scall[cnames] # input arguments related to model
+  mcall[[1]] <- as.name("model.frame")
+  m <- eval(mcall, parent.frame()) # make the input data as a dataframe
+  mterms <- attr(m, "terms") # attributes of input data
+  obj <- unclass(m[, 1]) # survival time and censoring indicator
+  if (!inherits(m[[1]], "Surv") || ncol(obj) > 2)
+    stop("aftosmac only supports Surv object with right censoring.", call. = FALSE)
+  formula[[2]] <- NULL
+  DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
+  mtd.name <- method
+  if (method == "least-squares") {
+    method <- "semi.ls"
+  }else if (method == "rank") {
+    # delete intercept for rank-based approach
+    DF <- DF[,-which(colnames(DF) == "(Intercept)")]
+    method <- "semi.rank.gehan.s"
+  }else if (method == "parametric") {
+    method <- "par.weibull"
+  }
+  # create engine
+  engine.control <- control[names(control) %in% names(attr(getClass(method), "slots"))]
+  engine <- do.call("new", c(list(Class = method), engine.control))
+  if (engine@b0 == 0) {
+    if (method == "par.weibull") {
+      engine@b0 <- c(1, as.numeric(rep(0, ncol(DF)-2)))
+    }else if (method == "semi.rank.gehan.s") {
+      engine@b0 <- as.numeric(lsfit(DF[, -(1:2)], log(DF[, 1]))$coefficient)[-1]
+    }else if (method == "semi.ls") {
+      engine@b0 <- as.numeric(rep(0, ncol(DF)-2))
+    }
+  }
+  if (length(engine@b0) != ncol(DF)-2 && method != "par.weibull") {
+    stop("Initial value length does not match with the numbers of covariates",
+         call. = FALSE)
+  }
+  if (length(engine@b0) != ncol(DF)-1 && method == "par.weibull") {
+    stop("Initial value length does not match with the numbers of covariates",
+         call. = FALSE)
+  }
+  
+  # get full sample estimator
+  engine@n <- nrow(DF)
+  DF$ssps <- rep(1/engine@n, engine@n)
+  est.full <- aftosmac.fit(DF, engine)
+  
+  coe.out <- est.full$coe
+  covg.out <- est.full$converge
+  
+  if (covg.out != 0) {
+    out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
+                coefficients = NA, covmat = NA, convergence = covg.out,
+                n.iteration = NA, method = mtd.name)
+    out$x <- DF[-c(1, 2, ncol(DF))]
+    out$y <- DF[, c(1, 2)]
+    
+    class(out) <- "aftest"
+    return(out)
+  }
+
+  engine@b <- coe.out
+  
+  g <- aftosmac.est(DF, engine)
+  vc <- crossprod(g) / engine@n
+  m_inv <- solve(aftosmac.slope(DF, engine))
+  covmat <- m_inv %*% vc %*% t(m_inv) / engine@n
+  
+  if (method == c("semi.rank.gehan.s")) {
+    coe.out <- intcp(DF, engine)
+  }
+  
+  if (method == "par.weibull") {
+    names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)
+  }else if (method == "semi.ls") {
+    names(coe.out) <- colnames(DF)[-c(1, 2, ncol(DF))]
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
+  }else if (method == "semi.rank.gehan.s") {
+    # add intercept term for the rank based estimator
+    names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
+    colnames(covmat) <- rownames(t) <- names(coe.out)[-1]
+  }
+  
+  out <- list(call = scall, vari.name = names(coe.out),
+              coefficients = coe.out, covmat = covmat, 
+              convergence = covg.out,
+              n.iteration = est.full$iter,
+              method = mtd.name)
+  out$x <- DF[-c(1, 2, ncol(DF))]
+  out$y <- DF[, c(1, 2)]
+  class(out) <- "aftest"
   return(out)
 }
 
