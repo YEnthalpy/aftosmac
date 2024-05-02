@@ -269,22 +269,24 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
          call. = FALSE)
   }
   
-  tol <- engine@tol
-  tol_pt <- engine@tol_pilot
   # get optimal SSPs
   engine@r0 <- n.pilot
   engine@r <- n.sub
   engine@n <- nrow(DF)
-  engine@tol <- tol_pt
   optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
-  DF$ssps <- optSSPs$ssp
   if (optSSPs$converge != 0) {
-    stop(paste0("Fail to get a converging pilot estimator. The converging code is ",
-                optSSPs$converge))
+    tol <- engine@tol
+    engine@tol <- engine@tol_pilot
+    optSSPs <- aftosmac.ssps(DF, engine, sspType = sspType)
+    if (optSSPs$converge != 0) {
+      stop(paste0("Fail to get a converging pilot estimator. The converging code is ",
+                  optSSPs$converge))
+    }
+    engine@tol <- tol
   }
-
+  DF$ssps <- optSSPs$ssp
   # get subsample estimator
-  engine@tol <- tol
+  
   subest <- replicate(n.repeat,
                       list(onefit(DF, engine, optSSPs, combine, method, n.repeat)))
 
