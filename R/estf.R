@@ -25,8 +25,13 @@ lsEst <- function(DF, engine) {
 }
 
 rankEst.gehan.s <- function(DF, engine) {
-  gehan_s_mtg(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time), DF$status,
-              DF$ssps, engine@b, engine@ind_sub-1, engine@n)
+  if (engine@mtg == 0) {
+    gehan_smth(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time),
+               DF$status, DF$ssps, engine@b, engine@n)
+  }else if (engine@mtg == 1){
+    gehan_s_mtg(as.matrix(DF[, -c(1:2, ncol(DF))]), log(DF$time), DF$status,
+                DF$ssps, engine@b, engine@ind_sub-1, engine@n)
+  }
 }
 
 rankEst.gehan.ns <- function(DF, engine) {

@@ -432,7 +432,7 @@ aftest <- function(formula, data, contrasts = NULL, subset,
   }
 
   engine@b <- coe.out
-  
+  engine@ind_sub <- seq_len(engine@n)
   g <- aftosmac.est(DF, engine)
   vc <- crossprod(g) / engine@n
   m_inv <- solve(aftosmac.slope(DF, engine))
@@ -451,7 +451,7 @@ aftest <- function(formula, data, contrasts = NULL, subset,
   }else if (method == "semi.rank.gehan.s") {
     # add intercept term for the rank based estimator
     names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
-    colnames(covmat) <- rownames(t) <- names(coe.out)[-1]
+    colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
   }
   
   out <- list(call = scall, vari.name = names(coe.out),
