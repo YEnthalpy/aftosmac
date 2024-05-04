@@ -373,6 +373,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
               combine = combine, n.repeat = n.repeat)
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
+  out$ssp <- DF[, ncol(DF)]
   class(out) <- "aftosmac"
   return(out)
 }
