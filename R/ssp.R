@@ -6,7 +6,7 @@ aftosmac.ssps <- function(DF, engine, sspType = c("uniform", "optA", "optL")) {
   if (sspType == "uniform") {
     return(list(ssp = rep(1/engine@n, engine@n),
                 ind.pt = sample(engine@n, engine@r0, TRUE),
-                converge = 0))
+                converge = 0, iteration = 0))
   }else {
     ind_pt <- sample(engine@n, engine@r0, TRUE)
     mle_pt <- aftosmac.fit(DF = DF[ind_pt, ], engine = engine)
@@ -30,6 +30,6 @@ aftosmac.ssps <- function(DF, engine, sspType = c("uniform", "optA", "optL")) {
       ssp <- m_mse / sum(m_mse) * (1 - engine@alpha) + engine@alpha / engine@n
     }
     return(list(ssp = ssp, M.pt = m, ind.pt = ind_pt,
-                converge = 0, coe.pt = mle_pt$coe))
+                converge = 0, coe.pt = mle_pt$coe, iteration = mle_pt$iter))
   }
 }

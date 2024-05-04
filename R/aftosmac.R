@@ -270,6 +270,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
   }
   
   # get optimal SSPs
+  ptm1 <- proc.time()
   engine@r0 <- n.pilot
   engine@r <- n.sub
   engine@n <- nrow(DF)
@@ -285,18 +286,21 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     engine@tol <- tol
   }
   DF$ssps <- optSSPs$ssp
+  ptm2 <- proc.time()
   # get subsample estimator
   
   subest <- replicate(n.repeat,
                       list(onefit(DF, engine, optSSPs, combine, method, n.repeat)))
-
+  ptm3 <- proc.time()
   engine@ind_sub <- seq_len(engine@r + engine@r0)
   if (n.repeat == 1) {
     covg.out <- subest[[1]]$covg
     if (covg.out != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
-                  coefficients = NA, covmat = NA, convergence = covg.out,
+                  coefficients = NA, covmat = NA,
+                  convergence = covg.out,
                   n.iteration = NA,
+                  time = NA,
                   ssp.type = sspType, method = mtd.name,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
@@ -320,6 +324,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA, convergence = table(covg.out),
                   n.iteration = NA,
+                  time = NA,
                   ssp.type = sspType, method = mtd.name,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
@@ -330,9 +335,9 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     coe.mat <- sapply(subest, function(t){t[["coe"]]})
     coe.out <- rowMeans(coe.mat)
     covmat <- list("Full Data Estimates" = var(t(coe.mat[-1, ])) / n.repeat)
-    itr.out <- mean(sapply(subest, function(t){t[["iter"]]}))
+    itr.out <- sapply(subest, function(t){t[["iter"]]})
   }
-
+  ptm4 <- proc.time()
   if (method == "par.weibull") {
     names(coe.out) <- c("Scale", colnames(DF)[-c(1, 2, ncol(DF))])
     covmat <- lapply(covmat, function(t){
@@ -353,11 +358,17 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
       return(t)
     })
   }
-
+  out.time <- rbind(ptm2 - ptm1, ptm3 - ptm2, ptm4 - ptm3)
+  rownames(out.time) <- c("ssps", "coefficients", "vcov")
+  convergence <- c(optSSPs$converge, covg.out)
+  names(convergence) <- c("pilot", paste0("sec_step", seq_along(covg.out)))
+  iteration <- c(optSSPs$iteration, itr.out)
+  names(iteration) <- c("pilot", paste0("sec_step", seq_along(itr.out)))
   out <- list(call = scall, vari.name = names(coe.out),
               coefficients = coe.out, covmat = covmat, 
-              convergence = covg.out,
-              n.iteration = itr.out,
+              convergence = convergence,
+              n.iteration = iteration,
+              time = out.time,
               ssp.type = sspType, method = mtd.name,
               combine = combine, n.repeat = n.repeat)
   out$x <- DF[-c(1, 2, ncol(DF))]
