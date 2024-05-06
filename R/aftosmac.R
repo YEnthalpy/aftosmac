@@ -298,14 +298,13 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     if (covg.out != 0) {
       out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                   coefficients = NA, covmat = NA,
-                  convergence = covg.out,
-                  n.iteration = NA,
-                  time = NA,
+                  convergence = c("pilot" = 0, "sec_step" = covg.out),
+                  n.iteration = c("pilot" = optSSPs$iteration, "sec_step" = NA),
+                  time = c("ssps" = ptm2 - ptm1, "coefficients" = NA, "vcov" = NA),
                   ssp.type = sspType, method = mtd.name,
                   combine = combine, n.repeat = n.repeat)
       out$x <- DF[-c(1, 2, ncol(DF))]
       out$y <- DF[, c(1, 2)]
-
       class(out) <- "aftosmac"
       return(out)
     }
