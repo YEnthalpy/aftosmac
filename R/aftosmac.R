@@ -217,7 +217,7 @@ onefit <- function(DF, engine, optSSPs, combine, method, n.repeat) {
 aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
                      contrasts = NULL, subset,
                      sspType = c("optA", "optL", "uniform"),
-                     method = c("parametric", "least-squares", "rank"),
+                     method = c("parametric", "least_squares", "rank"),
                      combine = c("estimator", "sample"),
                      control = list()) {
   method <- match.arg(method)
@@ -239,7 +239,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
     combine <- "sample"
   }
   mtd.name <- method
-  if (method == "least-squares") {
+  if (method == "least_squares") {
     method <- "semi.ls"
   }else if (method == "rank") {
     # delete intercept for rank-based approach
@@ -382,7 +382,7 @@ aftosmac <- function(formula, data, n.pilot, n.sub, n.repeat = 1,
 }
 
 aftest <- function(formula, data, contrasts = NULL, subset,
-                   method = c("parametric", "least-squares", "rank"),
+                   method = c("parametric", "least_squares", "rank"),
                    control = list()) {
   method <- match.arg(method)
   scall <- match.call() # call function, including all inputs
@@ -399,7 +399,7 @@ aftest <- function(formula, data, contrasts = NULL, subset,
   formula[[2]] <- NULL
   DF <- as.data.frame(cbind(obj, model.matrix(mterms, m, contrasts))) # add covariates
   mtd.name <- method
-  if (method == "least-squares") {
+  if (method == "least_squares") {
     method <- "semi.ls"
   }else if (method == "rank") {
     # delete intercept for rank-based approach
