@@ -430,6 +430,8 @@ aftest <- function(formula, data, contrasts = NULL, subset,
   }
   
   # get full sample estimator
+  ptm1 <- proc.time()
+  
   engine@n <- nrow(DF)
   DF$ssps <- rep(1/engine@n, engine@n)
   est.full <- aftosmac.fit(DF, engine)
@@ -437,10 +439,11 @@ aftest <- function(formula, data, contrasts = NULL, subset,
   coe.out <- est.full$coe
   covg.out <- est.full$converge
   
+  ptm2 <- proc.time()
   if (covg.out != 0) {
     out <- list(call = scall, vari.name = colnames(DF)[-c(1, 2, ncol(DF))],
                 coefficients = NA, covmat = NA, convergence = covg.out,
-                n.iteration = NA, method = mtd.name)
+                n.iteration = NA, time = NA, method = mtd.name)
     out$x <- DF[-c(1, 2, ncol(DF))]
     out$y <- DF[, c(1, 2)]
     
@@ -470,11 +473,15 @@ aftest <- function(formula, data, contrasts = NULL, subset,
     names(coe.out) <- c("(Intercept)", colnames(DF)[-c(1, 2, ncol(DF))])
     colnames(covmat) <- rownames(covmat) <- names(coe.out)[-1]
   }
+  ptm3 <- proc.time()
   
+  out.time <- rbind(ptm2 - ptm1, ptm3 - ptm2)
+  rownames(out.time) <- c("coefficients", "vcov")
   out <- list(call = scall, vari.name = names(coe.out),
               coefficients = coe.out, covmat = covmat, 
               convergence = covg.out,
               n.iteration = est.full$iter,
+              time = out.time,
               method = mtd.name)
   out$x <- DF[-c(1, 2, ncol(DF))]
   out$y <- DF[, c(1, 2)]
